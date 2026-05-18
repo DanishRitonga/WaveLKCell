@@ -24,42 +24,42 @@ def load_unireplknet_s_encoder(
     state_dict = torch.load(cache_path, map_location="cpu")
 
     encoder_state = {}
-    prefix_map = {
-        "downsample_layers": "downsample_layers",
-        "stages": "stages",
-        "norms": "norms",
-    }
     for key, value in state_dict.items():
         if key.startswith("head."):
             continue
-        for prefix in prefix_map:
-            if key.startswith(prefix):
-                stage_idx = _extract_stage_index(key, prefix)
-                if stage_idx is not None and stage_idx < 3:
-                    encoder_state[key] = value
-                elif stage_idx is None:
-                    if "input_conv" not in key and "input_down_conv" not in key:
-                        if prefix == "downsample_layers":
-                            ds_idx = _extract_downsample_index(key)
-                            if ds_idx is not None and ds_idx < 3:
-                                encoder_state[key] = value
-                break
+        new_key = _remap_key(key)
+        if new_key is not None:
+            encoder_state[new_key] = value
 
     msg = encoder.load_state_dict(encoder_state, strict=False)
     logger.info(f"Loaded UniRepLKNet-S pretrained encoder: {msg}")
 
 
-def _extract_stage_index(key: str, prefix: str) -> int | None:
-    remainder = key[len(prefix) + 1:]
-    for i in range(10):
-        if remainder.startswith(f"{i}."):
-            return i
-    return None
+def _remap_key(key: str) -> str | None:
+    if key.startswith("stages."):
+        idx = int(key.split(".")[1])
+        if idx < 3:
+            return key
+        return None
 
+    if key.startswith("downsample_layers."):
+        parts = key.split(".")
+        idx = int(parts[1])
+        if idx == 0:
+            return key
+        if idx < 3:
+            rest = ".".join(parts[2:])
+            if rest.startswith("0."):
+                return f"downsample_layers.{idx}.conv.{rest[2:]}"
+            if rest.startswith("1."):
+                return f"downsample_layers.{idx}.norm.{rest[2:]}"
+            return f"downsample_layers.{idx}.{rest}"
+        return None
 
-def _extract_downsample_index(key: str) -> int | None:
-    remainder = key[len("downsample_layers."):]
-    for i in range(10):
-        if remainder.startswith(f"{i}."):
-            return i
+    if key.startswith("norms."):
+        idx = int(key.split(".")[1])
+        if idx < 3:
+            return key
+        return None
+
     return None
