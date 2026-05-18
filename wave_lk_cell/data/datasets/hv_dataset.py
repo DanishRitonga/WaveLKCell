@@ -10,6 +10,25 @@ from albumentations.pytorch import ToTensorV2
 from datasets import Dataset
 from torch import Tensor
 
+_GEO_TYPES = (
+    A.RandomRotate90, A.HorizontalFlip, A.VerticalFlip,
+    A.Transpose, A.ShiftScaleRotate, A.ElasticTransform,
+    A.GridDistortion, A.OpticalDistortion, A.RandomCrop,
+    A.RandomSizedCrop, A.Crop, A.CropNonEmptyMaskIfExists,
+    A.PadIfNeeded, A.Resize, A.LongestMaxSize, A.SmallestMaxSize,
+)
+
+
+def _split_transforms(
+    transforms: A.Compose,
+) -> tuple[A.Compose | None, A.Compose | None]:
+    geo_list = [t for t in transforms.transforms if isinstance(t, _GEO_TYPES)]
+    img_list = [t for t in transforms.transforms if not isinstance(t, _GEO_TYPES)]
+    return (
+        A.Compose(geo_list) if geo_list else None,
+        A.Compose(img_list) if img_list else None,
+    )
+
 
 class TrainingDataset(torch.utils.data.Dataset[tuple[Tensor, dict[str, Any]]]):
     def __init__(
@@ -26,6 +45,7 @@ class TrainingDataset(torch.utils.data.Dataset[tuple[Tensor, dict[str, Any]]]):
             if "categories" in self.data.features
             else []
         )
+        self.geo_transforms, self.img_transforms = _split_transforms(self.transforms)
 
     def __len__(self) -> int:
         return len(self.data)
@@ -40,16 +60,22 @@ class TrainingDataset(torch.utils.data.Dataset[tuple[Tensor, dict[str, Any]]]):
             else np.zeros(masks.shape[-1])
         )
 
-        transformed = self.transforms(image=image, mask=masks)
-        image = transformed["image"]
-        masks = transformed["mask"].transpose(2, 0, 1)
+        if self.geo_transforms is not None:
+            transformed = self.geo_transforms(image=image, mask=masks)
+            image = transformed["image"]
+            masks = transformed["mask"]
+
+        masks = masks.transpose(2, 0, 1)
+
+        if self.img_transforms is not None:
+            image = self.img_transforms(image=image)["image"]
+
+        image = self._to_tensor(image=image)["image"]
+        masks = torch.from_numpy(masks)
 
         keep = masks.any(axis=(1, 2))
         masks = masks[keep]
         labels = labels[keep]
-
-        image = self._to_tensor(image=image)["image"]
-        masks = torch.from_numpy(masks)
 
         return image, {
             "masks": masks,
@@ -73,6 +99,7 @@ class TestingDataset(torch.utils.data.Dataset[tuple[Tensor, dict[str, Any]]]):
             if "categories" in self.data.features
             else []
         )
+        self.geo_transforms, self.img_transforms = _split_transforms(self.transforms)
 
     def __len__(self) -> int:
         return len(self.data)
@@ -87,11 +114,15 @@ class TestingDataset(torch.utils.data.Dataset[tuple[Tensor, dict[str, Any]]]):
             else np.zeros(masks.shape[-1])
         )
 
-        transformed = self.transforms(image=image, mask=masks)
-        image = transformed["image"]
-        mask = transformed["mask"]
+        if self.geo_transforms is not None:
+            transformed = self.geo_transforms(image=image, mask=masks)
+            image = transformed["image"]
+            masks = transformed["mask"]
 
-        transformed = self._to_tensor(image=image, mask=mask)
+        if self.img_transforms is not None:
+            image = self.img_transforms(image=image)["image"]
+
+        transformed = self._to_tensor(image=image, mask=masks)
 
         return transformed["image"], {
             "masks": transformed["mask"],
