@@ -70,6 +70,7 @@ class WaveLKCellMetaArch(pl.LightningModule):
         self.criterion_config = criterion or {}
         self.optimizer_config = optimizer or {}
         self.scheduler_config = scheduler or {}
+        self.tissue_names: list[str] = []
 
         self.config = WaveLKCellConfig(
             num_nuclei_classes=num_classes,
@@ -138,7 +139,10 @@ class WaveLKCellMetaArch(pl.LightningModule):
         hv_loss = F.mse_loss(outputs["hv_map"], gt_hv.float())
         type_loss = F.cross_entropy(outputs["nuclei_type_map"], gt_type)
 
-        tissue_labels = torch.stack([t["tissue"] for t in targets]).long()
+        tissue_labels = torch.tensor(
+            [self.tissue_names.index(t["tissue"]) for t in targets],
+            device=outputs["tissue_types"].device,
+        )
         tissue_loss = F.cross_entropy(outputs["tissue_types"], tissue_labels)
 
         np_weight = self.criterion_config.get("np_weight", 1.0)
@@ -163,6 +167,8 @@ class WaveLKCellMetaArch(pl.LightningModule):
 
     def training_step(self, batch: tuple[torch.Tensor, list[dict]], batch_idx: int) -> torch.Tensor:
         images, targets = batch
+        if not self.tissue_names:
+            self.tissue_names = list(dict.fromkeys(t["tissue"] for t in targets))
         outputs = self(images)
         losses = self._compute_loss(outputs, targets)
 
@@ -173,6 +179,8 @@ class WaveLKCellMetaArch(pl.LightningModule):
 
     def validation_step(self, batch: tuple[torch.Tensor, list[dict]], batch_idx: int) -> None:
         images, targets = batch
+        if not self.tissue_names:
+            self.tissue_names = list(dict.fromkeys(t["tissue"] for t in targets))
         outputs = self(images)
         losses = self._compute_loss(outputs, targets)
 
@@ -183,6 +191,8 @@ class WaveLKCellMetaArch(pl.LightningModule):
 
     def test_step(self, batch: tuple[torch.Tensor, list[dict]], batch_idx: int) -> None:
         images, targets = batch
+        if not self.tissue_names:
+            self.tissue_names = list(dict.fromkeys(t["tissue"] for t in targets))
         outputs = self(images)
         self._update_instance_metrics(outputs, targets, "test")
 
