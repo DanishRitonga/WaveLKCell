@@ -87,11 +87,17 @@ def post_process_batch(
 ) -> list[tuple[np.ndarray, np.ndarray]]:
     results = []
     for i in range(np_binary_maps.shape[0]):
-        inst, typ = post_process(
+        hv = hv_maps[i]
+        if hv.ndim == 3:
+            hv = hv.transpose(1, 2, 0)
+        typ = type_maps[i]
+        if typ.ndim == 3:
+            typ = typ.transpose(1, 2, 0).argmax(axis=-1)
+        inst, type_map = post_process(
             np_binary_maps[i],
-            hv_maps[i].transpose(1, 2, 0),
-            type_maps[i].transpose(1, 2, 0).argmax(axis=-1),
+            hv,
+            typ,
             num_classes,
         )
-        results.append((inst, typ))
+        results.append((inst, type_map))
     return results

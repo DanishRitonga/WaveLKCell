@@ -165,10 +165,14 @@ class WaveLKCellMetaArch(pl.LightningModule):
             "tissue_loss": tissue_loss,
         }
 
+    def _update_tissue_names(self, targets: list[dict]) -> None:
+        for t in targets:
+            if t["tissue"] not in self.tissue_names:
+                self.tissue_names.append(t["tissue"])
+
     def training_step(self, batch: tuple[torch.Tensor, list[dict]], batch_idx: int) -> torch.Tensor:
         images, targets = batch
-        if not self.tissue_names:
-            self.tissue_names = list(dict.fromkeys(t["tissue"] for t in targets))
+        self._update_tissue_names(targets)
         outputs = self(images)
         losses = self._compute_loss(outputs, targets)
 
@@ -179,8 +183,7 @@ class WaveLKCellMetaArch(pl.LightningModule):
 
     def validation_step(self, batch: tuple[torch.Tensor, list[dict]], batch_idx: int) -> None:
         images, targets = batch
-        if not self.tissue_names:
-            self.tissue_names = list(dict.fromkeys(t["tissue"] for t in targets))
+        self._update_tissue_names(targets)
         outputs = self(images)
         losses = self._compute_loss(outputs, targets)
 
@@ -191,8 +194,7 @@ class WaveLKCellMetaArch(pl.LightningModule):
 
     def test_step(self, batch: tuple[torch.Tensor, list[dict]], batch_idx: int) -> None:
         images, targets = batch
-        if not self.tissue_names:
-            self.tissue_names = list(dict.fromkeys(t["tissue"] for t in targets))
+        self._update_tissue_names(targets)
         outputs = self(images)
         self._update_instance_metrics(outputs, targets, "test")
 
