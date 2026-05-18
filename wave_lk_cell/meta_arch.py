@@ -224,9 +224,7 @@ class WaveLKCellMetaArch(pl.LightningModule):
                 hv_np[None],
                 type_pred[i:i+1].cpu().numpy(),
                 self.num_classes,
-            )
-            pred_inst = pred_inst[0]
-            pred_type = pred_type[0]
+            )[0]
 
             pred_mask_list = []
             pred_label_list = []
