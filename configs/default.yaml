@@ -11,6 +11,7 @@ checkpoint:
   test: last
 
 trainer:
+  _target_: lightning.pytorch.Trainer
   precision: 16-mixed
   gradient_clip_val: 0.1
   enable_checkpointing: true
