@@ -1,6 +1,7 @@
 defaults:
   - hydra: default
   - logger: mlflow
+  - experiment: PanNuke
   - _self_
 
 seed: 19
