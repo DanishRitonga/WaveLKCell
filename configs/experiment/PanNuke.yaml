@@ -1,0 +1,53 @@
+@package _global_
+
+mode:
+  - fit
+  - test
+
+checkpoint:
+  test: last
+
+trainer:
+  max_epochs: 130
+
+data:
+  batch_size: 32
+  train_fold: 1
+  val_fold: 2
+  test_fold: 3
+  num_workers: 16
+  train_transforms:
+    - _target_: albumentations.RandomRotate90
+      p: 0.5
+    - _target_: albumentations.HorizontalFlip
+      p: 0.5
+    - _target_: albumentations.VerticalFlip
+      p: 0.5
+    - _target_: albumentations.RandomBrightnessContrast
+      brightness_limit: 0.2
+      contrast_limit: 0.2
+      p: 0.3
+    - _target_: albumentations.GaussNoise
+      var_limit:
+        - 10.0
+        - 50.0
+      p: 0.2
+    - _target_: albumentations.Normalize
+      mean:
+        - 0.5
+        - 0.5
+        - 0.5
+      std:
+        - 0.5
+        - 0.5
+        - 0.5
+  eval_transforms:
+    - _target_: albumentations.Normalize
+      mean:
+        - 0.5
+        - 0.5
+        - 0.5
+      std:
+        - 0.5
+        - 0.5
+        - 0.5

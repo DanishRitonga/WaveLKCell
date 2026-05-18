@@ -1,0 +1,19 @@
+hydra:
+  logging:
+    disable_this_logger: true
+
+  job_logging:
+    root:
+      level: WARNING
+    handlers:
+      console:
+        class: logging.StreamHandler
+        formatter: simple
+        stream: ext://sys.stdout
+    formatters:
+      simple:
+        format: "[%(levelname)s] %(message)s"
+
+  output_subdir: null
+  run:
+    dir: .

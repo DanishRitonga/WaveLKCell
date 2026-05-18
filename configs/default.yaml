@@ -1,0 +1,76 @@
+defaults:
+  - hydra: default
+  - logger: mlflow
+  - _self_
+
+seed: 19
+mode: ???
+checkpoint: null
+
+trainer:
+  precision: 16-mixed
+  gradient_clip_val: 0.1
+  enable_checkpointing: true
+  check_val_every_n_epoch: 5
+  max_epochs: 130
+  accumulate_grad_batches: 1
+  callbacks:
+    model_checkpoint:
+      _target_: lightning.pytorch.callbacks.ModelCheckpoint
+      save_top_k: 1
+      save_last: true
+      monitor: validation/bPQ
+      mode: max
+    finetune:
+      _target_: lightning.pytorch.callbacks.BackboneFinetuning
+      unfreeze_backbone_at_epoch: 25
+      backbone_initial_ratio_lr: 0.1
+
+data:
+  _target_: wave_lk_cell.data.PanNuke
+  batch_size: 32
+  num_workers: 16
+  train_fold: 1
+  val_fold: 2
+  test_fold: 3
+  train_transforms: null
+  eval_transforms:
+    - _target_: albumentations.Normalize
+      mean:
+        - 0.5
+        - 0.5
+        - 0.5
+      std:
+        - 0.5
+        - 0.5
+        - 0.5
+
+model:
+  _target_: wave_lk_cell.meta_arch.WaveLKCellMetaArch
+  num_classes: 5
+  num_tissue_classes: 19
+  warmup_epochs: 0
+  pretrained_encoder: true
+  criterion:
+    np_weight: 1.0
+    hv_weight: 1.0
+    type_weight: 1.0
+    tissue_weight: 0.1
+
+optimizer:
+  _target_: torch.optim.AdamW
+  lr: 8e-4
+  betas:
+    - 0.85
+    - 0.95
+  weight_decay: 0.05
+
+scheduler:
+  _target_: torch.optim.lr_scheduler.CosineAnnealingLR
+  T_max: ${trainer.max_epochs}
+  eta_min: 1e-5
+
+metadata:
+  experiment_name: WaveLKCell Nuclei Segmentation
+  run_name: ${now:%Y-%m-%d_%H-%M-%S}
+  description: WaveLKCell nuclei instance segmentation on PanNuke
