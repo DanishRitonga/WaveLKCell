@@ -80,6 +80,7 @@ class WaveLKCellMetaArch(pl.LightningModule):
             num_tissue_classes=num_tissue_classes,
             pretrained_encoder=pretrained_encoder,
         )
+        self.backbone = self.model.encoder
 
         self.val_metrics = NestedMetricCollection(BinaryPanopticQuality)
         self.test_binary_metrics = NestedMetricCollection(BinaryPanopticQuality)
