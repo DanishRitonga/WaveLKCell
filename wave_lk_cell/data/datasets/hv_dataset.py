@@ -73,7 +73,7 @@ class TrainingDataset(torch.utils.data.Dataset[tuple[Tensor, dict[str, Any]]]):
         image = self._to_tensor(image=image)["image"]
         masks = torch.from_numpy(masks)
 
-        keep = masks.any(axis=(1, 2))
+        keep = masks.any(axis=(1, 2)).numpy()
         masks = masks[keep]
         labels = labels[keep]
 
