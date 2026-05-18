@@ -206,7 +206,7 @@ class WaveLKCellMetaArch(pl.LightningModule):
 
         np_pred = outputs["nuclei_binary_map"].softmax(dim=1)[:, 1]
         hv_pred = outputs["hv_map"]
-        type_pred = outputs["nuclei_type_map"].argmax(dim=1)
+        type_pred = outputs["nuclei_type_map"]
 
         for i in range(batch_size):
             tissue = targets[i]["tissue"]
