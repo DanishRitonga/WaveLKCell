@@ -145,7 +145,7 @@ class TrainingDataset(torch.utils.data.Dataset[tuple[Tensor, dict[str, Any]]]):
 
         image = self._to_tensor(image=image)["image"]
 
-        keep = np.any(masks.reshape(n_instances, -1), axis=1)
+        keep = np.any(masks, axis=(1, 2)) if n_instances > 0 else np.array([], dtype=bool)
         masks = masks[keep]
         labels = labels[keep]
 
