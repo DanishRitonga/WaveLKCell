@@ -18,14 +18,12 @@ trainer:
   max_epochs: 130
   accumulate_grad_batches: 1
   callbacks:
-    model_checkpoint:
-      _target_: lightning.pytorch.callbacks.ModelCheckpoint
+    - _target_: lightning.pytorch.callbacks.ModelCheckpoint
       save_top_k: 1
       save_last: true
       monitor: validation/bPQ
       mode: max
-    finetune:
-      _target_: lightning.pytorch.callbacks.BackboneFinetuning
+    - _target_: lightning.pytorch.callbacks.BackboneFinetuning
       unfreeze_backbone_at_epoch: 25
       backbone_initial_ratio_lr: 0.1
 
@@ -48,9 +46,6 @@ data:
       contrast_limit: 0.2
       p: 0.3
     - _target_: albumentations.GaussNoise
-      var_limit:
-        - 10.0
-        - 50.0
       p: 0.2
     - _target_: albumentations.Normalize
       mean:
