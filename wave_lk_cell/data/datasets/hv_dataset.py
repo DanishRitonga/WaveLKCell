@@ -66,6 +66,9 @@ class TrainingDataset(torch.utils.data.Dataset[tuple[Tensor, dict[str, Any]]]):
             masks = transformed["mask"]
 
         masks = masks.transpose(2, 0, 1)
+        n_instances = masks.shape[0]
+        if isinstance(labels, np.ndarray) and labels.ndim == 1 and labels.shape[0] != n_instances:
+            labels = np.zeros(n_instances, dtype=np.uint8)
 
         if self.img_transforms is not None:
             image = self.img_transforms(image=image)["image"]
