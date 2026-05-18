@@ -5,7 +5,7 @@ from random import randint
 import hydra
 import torch
 from lightning import seed_everything
-from lightning.pytorch.loggers import Logger
+from lightning.pytorch.loggers import MLFlowLogger
 from omegaconf import DictConfig, ListConfig, OmegaConf
 
 OmegaConf.register_new_resolver(
@@ -14,13 +14,14 @@ OmegaConf.register_new_resolver(
 
 
 @hydra.main(config_path="../configs", config_name="default", version_base=None)
-def main(config: DictConfig, logger: Logger) -> None:
+def main(config: DictConfig) -> None:
     seed_everything(config.seed, workers=True)
     torch.set_float32_matmul_precision("high")
 
     data = hydra.utils.instantiate(config.data)
     model = hydra.utils.instantiate(config.model)
 
+    logger = hydra.utils.instantiate(config.logger) if "logger" in config else None
     trainer = hydra.utils.instantiate(config.trainer, logger=logger)
 
     if isinstance(config.mode, ListConfig):
