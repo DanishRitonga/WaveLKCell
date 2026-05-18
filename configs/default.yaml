@@ -35,6 +35,7 @@ data:
   train_fold: 1
   val_fold: 2
   test_fold: 3
+  num_classes: ${model.num_classes}
   train_transforms:
     - _target_: albumentations.RandomRotate90
       p: 0.5

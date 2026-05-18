@@ -27,6 +27,7 @@ class PanNuke(LightningDataModule):
         val_fold: int | None = None,
         test_fold: int | None = None,
         num_workers: int = 0,
+        num_classes: int = 5,
         train_transforms: TransformsSeqType | None = None,
         eval_transforms: TransformsSeqType | None = None,
     ) -> None:
@@ -36,6 +37,7 @@ class PanNuke(LightningDataModule):
         self.val_fold = val_fold
         self.test_fold = test_fold
         self.num_workers = num_workers
+        self.num_classes = num_classes
         self.train_transforms = train_transforms
         self.eval_transforms = eval_transforms
 
@@ -55,18 +57,18 @@ class PanNuke(LightningDataModule):
                     else ds[f"fold{self.train_fold}"]
                 )
                 self.train_dataset = TrainingDataset(
-                    data, self.train_transforms
+                    data, self.train_transforms, self.num_classes
                 )
                 self.val_dataset = TrainingDataset(
-                    ds[f"fold{self.val_fold}"], self.eval_transforms
+                    ds[f"fold{self.val_fold}"], self.eval_transforms, self.num_classes
                 )
             case "validate":
                 self.val_dataset = TrainingDataset(
-                    ds[f"fold{self.val_fold}"], self.eval_transforms
+                    ds[f"fold{self.val_fold}"], self.eval_transforms, self.num_classes
                 )
             case "test":
                 self.test_dataset = TestingDataset(
-                    ds[f"fold{self.test_fold}"], self.eval_transforms
+                    ds[f"fold{self.test_fold}"], self.eval_transforms, self.num_classes
                 )
 
     def train_dataloader(self) -> DataLoader[tuple[Tensor, list[dict[str, Any]]]]:

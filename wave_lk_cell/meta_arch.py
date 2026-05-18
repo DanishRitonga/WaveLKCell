@@ -97,43 +97,9 @@ class WaveLKCellMetaArch(pl.LightningModule):
         outputs: dict[str, torch.Tensor],
         targets: list[dict[str, torch.Tensor]],
     ) -> dict[str, torch.Tensor]:
-        batch_size = outputs["nuclei_binary_map"].shape[0]
-
-        gt_binary = []
-        gt_hv = []
-        gt_type = []
-
-        for target in targets:
-            masks = target["masks"].cpu()
-            labels = target["labels"].cpu()
-            H, W = outputs["nuclei_binary_map"].shape[-2:]
-
-            binary = torch.zeros(H, W)
-            hv_h = torch.zeros(H, W)
-            hv_v = torch.zeros(H, W)
-            type_map = torch.zeros(H, W, dtype=torch.long)
-
-            if masks.shape[0] > 0:
-                binary = masks.sum(dim=0).clamp(0, 1)
-                for i in range(masks.shape[0]):
-                    nz = torch.nonzero(masks[i], as_tuple=False)
-                    if nz.numel() > 0:
-                        cy = nz[:, 0].float().mean()
-                        cx = nz[:, 1].float().mean()
-                        ys = nz[:, 0].float() - cy
-                        xs = nz[:, 1].float() - cx
-                        hv_h[nz[:, 0], nz[:, 1]] = ys
-                        hv_v[nz[:, 0], nz[:, 1]] = xs
-                        lbl = labels[i].item() if i < len(labels) else 0
-                        type_map[nz[:, 0], nz[:, 1]] = lbl
-
-            gt_binary.append(binary)
-            gt_hv.append(torch.stack([hv_h, hv_v], dim=-1))
-            gt_type.append(type_map)
-
-        gt_binary = torch.stack(gt_binary).to(outputs["nuclei_binary_map"].device)
-        gt_hv = torch.stack(gt_hv).permute(0, 3, 1, 2).to(outputs["hv_map"].device)
-        gt_type = torch.stack(gt_type).to(outputs["nuclei_type_map"].device)
+        gt_binary = torch.stack([t["binary_map"] for t in targets]).to(outputs["nuclei_binary_map"].device)
+        gt_hv = torch.stack([t["hv_map"] for t in targets]).to(outputs["hv_map"].device)
+        gt_type = torch.stack([t["type_map"] for t in targets]).to(outputs["nuclei_type_map"].device)
 
         np_loss = F.cross_entropy(outputs["nuclei_binary_map"], gt_binary.long())
         hv_loss = F.mse_loss(outputs["hv_map"], gt_hv.float())
