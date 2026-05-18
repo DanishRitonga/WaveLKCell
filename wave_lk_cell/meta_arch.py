@@ -104,14 +104,14 @@ class WaveLKCellMetaArch(pl.LightningModule):
         gt_type = []
 
         for target in targets:
-            masks = target["masks"]
-            labels = target["labels"]
+            masks = target["masks"].cpu()
+            labels = target["labels"].cpu()
             H, W = outputs["nuclei_binary_map"].shape[-2:]
 
-            binary = torch.zeros(H, W, device=masks.device)
-            hv_h = torch.zeros(H, W, device=masks.device)
-            hv_v = torch.zeros(H, W, device=masks.device)
-            type_map = torch.zeros(H, W, device=masks.device, dtype=torch.long)
+            binary = torch.zeros(H, W)
+            hv_h = torch.zeros(H, W)
+            hv_v = torch.zeros(H, W)
+            type_map = torch.zeros(H, W, dtype=torch.long)
 
             if masks.shape[0] > 0:
                 binary = masks.sum(dim=0).clamp(0, 1)
@@ -131,9 +131,9 @@ class WaveLKCellMetaArch(pl.LightningModule):
             gt_hv.append(torch.stack([hv_h, hv_v], dim=-1))
             gt_type.append(type_map)
 
-        gt_binary = torch.stack(gt_binary)
-        gt_hv = torch.stack(gt_hv).permute(0, 3, 1, 2)
-        gt_type = torch.stack(gt_type)
+        gt_binary = torch.stack(gt_binary).to(outputs["nuclei_binary_map"].device)
+        gt_hv = torch.stack(gt_hv).permute(0, 3, 1, 2).to(outputs["hv_map"].device)
+        gt_type = torch.stack(gt_type).to(outputs["nuclei_type_map"].device)
 
         np_loss = F.cross_entropy(outputs["nuclei_binary_map"], gt_binary.long())
         hv_loss = F.mse_loss(outputs["hv_map"], gt_hv.float())
