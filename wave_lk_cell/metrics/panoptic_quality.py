@@ -24,6 +24,13 @@ class PanopticQuality(Metric):
         pred_labels: torch.Tensor,
         gt_labels: torch.Tensor,
     ) -> None:
+        if pred_masks.dim() == 3:
+            pred_masks = pred_masks.unsqueeze(0)
+            pred_labels = pred_labels.unsqueeze(0)
+        if gt_masks.dim() == 3:
+            gt_masks = gt_masks.unsqueeze(0)
+            gt_labels = gt_labels.unsqueeze(0)
+
         B, N_pred, H, W = pred_masks.shape
         N_gt = gt_masks.shape[1]
 

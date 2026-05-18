@@ -20,6 +20,11 @@ class BinaryPanopticQuality(Metric):
         self.add_state("count", default=torch.tensor(0), dist_reduce_fx="sum")
 
     def update(self, pred_masks: torch.Tensor, gt_masks: torch.Tensor) -> None:
+        if pred_masks.dim() == 3:
+            pred_masks = pred_masks.unsqueeze(0)
+        if gt_masks.dim() == 3:
+            gt_masks = gt_masks.unsqueeze(0)
+
         pred_binary = pred_masks.sum(dim=1) > 0
         gt_binary = gt_masks.sum(dim=1) > 0
 
