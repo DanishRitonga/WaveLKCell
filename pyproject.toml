@@ -17,6 +17,7 @@ dependencies = [
     "scipy>=1.10",
     "numpy>=1.24",
     "pillow>=9.0",
+    "mlflow>=1.0.0",
 ]
 
 [build-system]
