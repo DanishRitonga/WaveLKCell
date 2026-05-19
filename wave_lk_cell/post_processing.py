@@ -6,6 +6,7 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 from scipy import ndimage
+from skimage.morphology import watershed
 
 
 def _sobel_gradients(hv_map: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
@@ -42,7 +43,7 @@ def _marker_controlled_watershed(
         edge_strength.max() - edge_strength.min() + 1e-8
     )
 
-    instance_map = ndimage.watershed(edge_normalized, markers, mask=fg_mask)
+    instance_map = watershed(edge_normalized, markers, mask=fg_mask)
     return instance_map
 
 
