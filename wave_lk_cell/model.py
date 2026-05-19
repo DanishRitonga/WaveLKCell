@@ -3,6 +3,7 @@ from __future__ import annotations
 import copy
 from typing import Any
 
+import numpy as np
 import torch
 import torch.nn.functional as F
 from torch import nn
@@ -97,7 +98,6 @@ class WaveLKCellModel(nn.Module):
             tissue_key = str(targets[i]["tissue"])
             np_binary = (np_pred[i] > 0.5).cpu().numpy()
             hv_np = hv_pred[i].detach().cpu().numpy()
-            type_np = type_pred[i].cpu().numpy()
             gt_masks = targets[i]["masks"].cpu()
             gt_labels = targets[i]["labels"].cpu()
 
@@ -107,7 +107,7 @@ class WaveLKCellModel(nn.Module):
 
             pred_mask_list = []
             pred_label_list = []
-            for inst_id in __import__("numpy", fromlist=["unique"]).unique(pred_inst):
+            for inst_id in np.unique(pred_inst):
                 if inst_id == 0:
                     continue
                 m = torch.from_numpy((pred_inst == inst_id).astype("float32"))
@@ -126,3 +126,38 @@ class WaveLKCellModel(nn.Module):
                 pred_labels = torch.zeros(0, dtype=torch.long)
 
             metrics.update(tissue_key, pred_masks, gt_masks, pred_labels, gt_labels)
+
+    def update_binary_metrics(
+        self,
+        outputs: dict[str, torch.Tensor],
+        targets: list[dict[str, torch.Tensor]],
+        metrics: NestedMetricCollection,
+    ) -> None:
+        batch_size = outputs["nuclei_binary_map"].shape[0]
+        np_pred = outputs["nuclei_binary_map"].float().softmax(dim=1)[:, 1]
+        hv_pred = outputs["hv_map"].float()
+
+        for i in range(batch_size):
+            tissue_key = str(targets[i]["tissue"])
+            np_binary = (np_pred[i] > 0.5).cpu().numpy()
+            hv_np = hv_pred[i].detach().cpu().numpy()
+            gt_masks = targets[i]["masks"].cpu()
+
+            pred_inst, _ = post_process_batch(
+                np_binary[None], hv_np[None], np.zeros((1, 5, 256, 256)), self.num_classes,
+            )[0]
+
+            pred_mask_list = []
+            for inst_id in np.unique(pred_inst):
+                if inst_id == 0:
+                    continue
+                m = torch.from_numpy((pred_inst == inst_id).astype("float32"))
+                pred_mask_list.append(m)
+
+            if pred_mask_list:
+                pred_masks = torch.stack(pred_mask_list)
+            else:
+                H, W = np_binary.shape
+                pred_masks = torch.zeros(0, H, W)
+
+            metrics.update(tissue_key, pred_masks, gt_masks)

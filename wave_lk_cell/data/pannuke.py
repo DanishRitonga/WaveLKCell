@@ -32,15 +32,17 @@ class PanNukeData:
         self.test_fold = test_fold
         self.num_workers = num_workers
         self.num_classes = num_classes
-        self.train_transforms = A.Compose(train_transforms or [])
-        self.eval_transforms = A.Compose(eval_transforms or [])
+        self.train_transforms = A.Compose(train_transforms if isinstance(train_transforms, list) else [train_transforms] if train_transforms else [])
+        self.eval_transforms = A.Compose(eval_transforms if isinstance(eval_transforms, list) else [eval_transforms] if eval_transforms else [])
 
         self.train_loader: DataLoader | None = None
         self.val_loader: DataLoader | None = None
         self.test_loader: DataLoader | None = None
 
     def setup(self, stage: str = "fit") -> None:
-        ds: DatasetDict = load_dataset("RationAI/PanNuke")
+        print("Loading PanNuke dataset from HuggingFace...")
+        ds: DatasetDict = load_dataset("RationAI/PanNuke", trust_remote_code=True)
+        print(f"  Loaded folds: {list(ds.keys())}")
         ds.set_transform(
             format_transform,
             columns=["image", "instances", "categories"],

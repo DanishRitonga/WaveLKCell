@@ -1,14 +1,11 @@
 from __future__ import annotations
 
 import copy
-import json
-import time
 from pathlib import Path
 from typing import Any
 
 import numpy as np
 import torch
-import torch.nn as nn
 from torch.optim import AdamW
 from torch.optim.lr_scheduler import CosineAnnealingLR
 from torch.utils.data import DataLoader
@@ -134,10 +131,12 @@ class WaveLKCellTrainer:
 
     @torch.no_grad()
     def _validate(self, loader: DataLoader, prefix: str) -> dict[str, float]:
-        metrics = self.val_binary_metrics if prefix == "val" else self.test_binary_metrics
-        mc_metrics = self.val_multiclass_metrics if prefix == "val" else self.test_multiclass_metrics
+        is_test = prefix == "test"
+        metrics = self.test_binary_metrics if is_test else self.val_binary_metrics
+        mc_metrics = self.test_multiclass_metrics if is_test else self.val_multiclass_metrics
         metrics.reset()
-        mc_metrics.reset()
+        if is_test:
+            mc_metrics.reset()
 
         self.model.eval()
         total_loss = 0.0
@@ -154,7 +153,10 @@ class WaveLKCellTrainer:
             total_loss += losses["loss"].item()
             n_batches += 1
 
-            self.model.update_metrics(outputs, targets, mc_metrics)
+            if is_test:
+                self.model.update_metrics(outputs, targets, mc_metrics)
+            else:
+                self.model.update_binary_metrics(outputs, targets, metrics)
 
         metrics_dict: dict[str, float] = {}
         binary_results = metrics.compute()
@@ -166,14 +168,15 @@ class WaveLKCellTrainer:
         avg_bpq = float(torch.stack([v["bPQ"] for v in binary_results.values()]).mean()) if binary_results else 0.0
         metrics_dict[f"{prefix}/bPQ"] = round(avg_bpq, 6)
 
-        mc_results = mc_metrics.compute()
-        for tissue, vals in mc_results.items():
-            for k, v in vals.items():
-                key = f"{prefix}_mc/{tissue}_{k}"
-                metrics_dict[key] = round(float(v), 6)
+        if is_test:
+            mc_results = mc_metrics.compute()
+            for tissue, vals in mc_results.items():
+                for k, v in vals.items():
+                    key = f"{prefix}_mc/{tissue}_{k}"
+                    metrics_dict[key] = round(float(v), 6)
+            avg_mpq = float(mc_results[next(iter(mc_results))]["mPQ"]) if mc_results else 0.0
+            metrics_dict[f"{prefix}/mPQ"] = round(avg_mpq, 6)
 
-        avg_mpq = float(mc_results[next(iter(mc_results))]["mPQ"]) if mc_results else 0.0
-        metrics_dict[f"{prefix}/mPQ"] = round(avg_mpq, 6)
         metrics_dict[f"{prefix}/loss"] = round(total_loss / max(n_batches, 1), 6)
 
         return metrics_dict
@@ -211,7 +214,6 @@ class WaveLKCellTrainer:
                 self._unfreeze_backbone()
                 print(f"  [epoch {epoch}] Backbone unfrozen")
 
-            self.scheduler.step()
             epoch_losses = {"loss": 0.0, "np_loss": 0.0, "hv_loss": 0.0, "type_loss": 0.0}
             n_batches = 0
 
@@ -268,6 +270,7 @@ class WaveLKCellTrainer:
             )
 
             self._save_checkpoint(epoch, is_best)
+            self.scheduler.step()
 
             if self.stopper(epoch + 1, fitness):
                 print(f"  Early stopping at epoch {epoch + 1}")
