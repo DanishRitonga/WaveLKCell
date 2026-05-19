@@ -1,3 +1,3 @@
-from wave_lk_cell.data.pannuke import PanNuke
+from wave_lk_cell.data.pannuke import PanNukeData
 
-__all__ = ["PanNuke"]
+__all__ = ["PanNukeData"]
