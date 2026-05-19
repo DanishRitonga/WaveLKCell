@@ -87,8 +87,8 @@ class BinaryPanopticQuality(Metric):
             matched_gt = set()
             for r, c in matched:
                 if dists[r, c] < 20.0:
-                    pred_pixels = pred_masks[b, r]
-                    gt_pixels = gt_masks[b, c]
+                    pred_pixels = pred_masks[b, r].bool()
+                    gt_pixels = gt_masks[b, c].bool()
                     iou = (pred_pixels & gt_pixels).sum().float() / (pred_pixels | gt_pixels).sum().float() + 1e-8
                     if iou > 0.25:
                         tp += 1

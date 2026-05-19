@@ -57,8 +57,8 @@ class PanopticQuality(Metric):
                     self.count[cls] += 1
                     continue
 
-                intersection = (pred_cls_masks.any(dim=0) & gt_cls_masks.any(dim=0)).sum().float()
-                union = (pred_cls_masks.any(dim=0) | gt_cls_masks.any(dim=0)).sum().float()
+                intersection = (pred_cls_masks.any(dim=0).bool() & gt_cls_masks.any(dim=0).bool()).sum().float()
+                union = (pred_cls_masks.any(dim=0).bool() | gt_cls_masks.any(dim=0).bool()).sum().float()
                 dice = 2 * intersection / (union + 1e-8)
 
                 tp, fp, fn = self._match_by_class(pred_cls_masks, gt_cls_masks)
@@ -81,8 +81,8 @@ class PanopticQuality(Metric):
             best_iou = 0.0
             best_pred = -1
             for p in range(N_pred):
-                inter = (pred_masks[p] & gt_masks[n]).sum().float()
-                union = (pred_masks[p] | gt_masks[n]).sum().float()
+                inter = (pred_masks[p].bool() & gt_masks[n].bool()).sum().float()
+                union = (pred_masks[p].bool() | gt_masks[n].bool()).sum().float()
                 iou = inter / (union + 1e-8)
                 if iou > best_iou:
                     best_iou = iou
@@ -113,8 +113,8 @@ class PanopticQuality(Metric):
             for p in range(N_pred):
                 if p in matched_pred:
                     continue
-                inter = (pred_masks[p] & gt_masks[n]).sum().float()
-                union = (pred_masks[p] | gt_masks[n]).sum().float()
+                inter = (pred_masks[p].bool() & gt_masks[n].bool()).sum().float()
+                union = (pred_masks[p].bool() | gt_masks[n].bool()).sum().float()
                 iou = inter / (union + 1e-8)
                 if iou > best_iou:
                     best_iou = iou
