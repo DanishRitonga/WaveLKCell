@@ -3,6 +3,7 @@ from __future__ import annotations
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import torch.utils.checkpoint as cp
 from timm.layers import DropPath, trunc_normal_
 
 
@@ -267,6 +268,7 @@ class LKCellEncoder(nn.Module):
         self.input_conv = nn.Conv2d(in_channels, dims[0] // 4, 3, stride=1, padding=1)
         self.input_down_conv = nn.Conv2d(in_channels, dims[0] // 2, 3, stride=2, padding=1)
 
+        self._gradient_checkpointing = False
         self._init_weights()
 
     def _init_weights(self) -> None:
@@ -287,7 +289,16 @@ class LKCellEncoder(nn.Module):
         stage_features = []
         for stage_idx in range(self.num_stages):
             x = self.downsample_layers[stage_idx](x)
-            x = self.stages[stage_idx](x)
+            if self._gradient_checkpointing and self.training:
+                x = cp.checkpoint(self.stages[stage_idx], x, use_reentrant=False)
+            else:
+                x = self.stages[stage_idx](x)
             x = self.norms[stage_idx](x)
             stage_features.append(x)
         return stage_features, input_features
+
+    def gradient_checkpointing_enable(self) -> None:
+        self._gradient_checkpointing = True
+
+    def gradient_checkpointing_disable(self) -> None:
+        self._gradient_checkpointing = False

@@ -107,7 +107,7 @@ class TrainingDataset(torch.utils.data.Dataset[tuple[Tensor, dict[str, Any]]]):
     ) -> None:
         super().__init__()
         self.data = data
-        self.transforms = A.Compose(transforms or [])
+        self.transforms = transforms if isinstance(transforms, A.Compose) else A.Compose(transforms or [])
         self._to_tensor = ToTensorV2()
         self.num_classes = num_classes
         self.categories = (
@@ -166,7 +166,7 @@ class TestingDataset(torch.utils.data.Dataset[tuple[Tensor, dict[str, Any]]]):
     ) -> None:
         super().__init__()
         self.data = data
-        self.transforms = A.Compose(transforms or [])
+        self.transforms = transforms if isinstance(transforms, A.Compose) else A.Compose(transforms or [])
         self._to_tensor = ToTensorV2(transpose_mask=True)
         self.num_classes = num_classes
         self.categories = (

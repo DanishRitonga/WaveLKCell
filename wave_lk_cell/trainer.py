@@ -102,6 +102,9 @@ class WaveLKCellTrainer:
     def _unfreeze_backbone(self) -> None:
         for p in self.model.encoder.parameters():
             p.requires_grad = True
+        if hasattr(self.model.encoder, "gradient_checkpointing_enable"):
+            self.model.encoder.gradient_checkpointing_enable()
+        torch.cuda.empty_cache()
 
     def _build_optimizer(
         self, lr: float, backbone_ratio: float, betas: tuple, wd: float, eta_min: float,
@@ -224,17 +227,25 @@ class WaveLKCellTrainer:
                 ni = i + nb * epoch
                 self._apply_warmup(ni, nw, base_lr)
 
-                with torch.amp.autocast("cuda", enabled=self.amp):
-                    outputs = self.model(images)
-                    losses = self.model.compute_loss(outputs, targets, self.loss_weights)
+                try:
+                    with torch.amp.autocast("cuda", enabled=self.amp):
+                        outputs = self.model(images)
+                        losses = self.model.compute_loss(outputs, targets, self.loss_weights)
 
-                loss_val = losses["loss"]
-                if not torch.isfinite(loss_val):
-                    print(f"  [epoch {epoch+1} batch {i}] NaN/Inf loss detected, skipping batch")
-                    self.optimizer.zero_grad()
-                    continue
+                    loss_val = losses["loss"]
+                    if not torch.isfinite(loss_val):
+                        print(f"  [epoch {epoch+1} batch {i}] NaN/Inf loss detected, skipping batch")
+                        self.optimizer.zero_grad()
+                        continue
 
-                self.scaler.scale(loss_val).backward()
+                    self.scaler.scale(loss_val).backward()
+                except RuntimeError as e:
+                    if "out of memory" in str(e):
+                        print(f"  [epoch {epoch+1} batch {i}] OOM, skipping batch")
+                        self.optimizer.zero_grad()
+                        torch.cuda.empty_cache()
+                        continue
+                    raise
 
                 if ni - last_opt_step >= self.accumulate:
                     self._optimizer_step(ni)
@@ -255,6 +266,7 @@ class WaveLKCellTrainer:
             val_scalars = {}
             fitness = 0.0
             if self.val_loader is not None:
+                torch.cuda.empty_cache()
                 val_scalars = self._validate(self.val_loader, "val")
                 self._log_scalars(val_scalars, epoch + 1)
                 fitness = val_scalars.get("val/bPQ", 0.0)
