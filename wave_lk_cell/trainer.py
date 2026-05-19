@@ -83,7 +83,9 @@ class WaveLKCellTrainer:
         self.scaler = torch.amp.GradScaler("cuda", enabled=self.amp)
 
         self._freeze_backbone()
-        self.optimizer, self.scheduler = self._build_optimizer(lr, backbone_lr_ratio, betas, weight_decay, eta_min)
+        self.optimizer, self.scheduler = self._build_optimizer(
+            float(lr), float(backbone_lr_ratio), tuple(betas), float(weight_decay), float(eta_min),
+        )
         self.best_fitness = 0.0
         self.start_epoch = 0
 
