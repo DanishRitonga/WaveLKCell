@@ -24,12 +24,12 @@ scheduler:
   eta_min: 1e-5
 
 trainer:
-  epochs: 130
+  epochs: 200
   accumulate_grad_batches: 2
   gradient_clip_val: 0.1
   warmup_epochs: 0
   unfreeze_backbone_at_epoch: 25
-  patience: 30
+  patience: 50
   amp: true
 
 loss:
