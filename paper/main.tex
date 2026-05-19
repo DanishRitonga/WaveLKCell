@@ -13,6 +13,8 @@
 \usepackage{hyperref}
 \usepackage{cleveref}
 \usepackage{subcaption}
+\usepackage{tikz}
+\usetikzlibrary{positioning, arrows.meta, shapes.geometric, fit, calc, backgrounds, decorations.pathreplacing}
 
 \def\BibTeX{{\rm B\kern-.05em{\sc i\kern-.025em b}\kern-.08emT\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
 
@@ -37,7 +39,7 @@
 
 \begin{abstract}
 % TODO: Fill in final numbers after training
-Accurate cell nuclei instance segmentation in hematoxylin and eosin (H\&E) stained tissue images is essential for computational pathology. Recent large-kernel convolutional methods such as LKCell achieve state-of-the-art performance with efficient computation by expanding the receptive field through large convolution kernels. However, large kernels may blur fine high-frequency details critical for delineating nuclear boundaries and capturing chromatin texture. In this paper, we propose WaveLKCell, which integrates a multi-level wavelet enhancement module into the large-kernel segmentation framework. Our approach applies two-level Haar discrete wavelet transform (DWT) to the deepest encoder features, decomposing them into frequency sub-bands that are processed by specialized modules: Adaptive Power Gabor Convolution (APGConv) for high-frequency boundary details, self-attention for mid-high frequencies, channel attention for mid-low frequencies, and depthwise convolution for low frequencies. The enhanced features are reconstructed via inverse DWT with a residual connection and fed to a large-kernel decoder for nuclei prediction. Additionally, the wavelet-enhanced bottleneck features are used for auxiliary tissue type classification. Experiments on the PanNuke benchmark demonstrate that WaveLKCell achieves competitive performance, achieving an mPQ of \textbf{[X.XXXX]} and a bPQ of \textbf{[X.XXXX]}, validating the benefit of wavelet-enhanced frequency decomposition for large-kernel nuclei segmentation.
+Accurate cell nuclei instance segmentation in hematoxylin and eosin (H\&E) stained tissue images is essential for computational pathology. Recent large-kernel convolutional methods such as LKCell achieve state-of-the-art performance with efficient computation by expanding the receptive field through large convolution kernels. However, large kernels may blur fine high-frequency details critical for delineating nuclear boundaries and capturing chromatin texture. In this paper, we propose WaveLKCell, which integrates a multi-level wavelet enhancement module into the large-kernel segmentation framework. Our approach applies two-level Haar discrete wavelet transform (DWT) to the deepest encoder features, decomposing them into frequency sub-bands that are processed by specialized modules: Adaptive Power Gabor Convolution (APGConv) for high-frequency boundary details, self-attention for mid-high frequencies, channel attention for mid-low frequencies, and depthwise convolution for low frequencies. The enhanced features are reconstructed via inverse DWT with a residual connection and fed to a large-kernel decoder for nuclei prediction. Experiments on the PanNuke benchmark demonstrate that WaveLKCell achieves competitive performance, achieving an mPQ of \textbf{[X.XXXX]} and a bPQ of \textbf{[X.XXXX]}, validating the benefit of wavelet-enhanced frequency decomposition for large-kernel nuclei segmentation.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -62,7 +64,6 @@ In this paper, we propose WaveLKCell, a method that integrates multi-level wavel
 \begin{itemize}
     \item We propose WaveLKCell, which integrates a two-level Haar wavelet enhancement module into a large-kernel encoder-decoder architecture for cell nuclei instance segmentation.
     \item We employ frequency-specific processors---Adaptive Power Gabor Convolution (APGConv) for high-frequency nuclear boundaries, self-attention for mid-high frequencies, channel attention for mid-low frequencies, and depthwise convolution for low frequencies---to selectively enhance the features most relevant to nuclei segmentation.
-    \item We introduce an auxiliary tissue classification branch from the wavelet-enhanced bottleneck features, providing additional supervision that regularizes the shared encoder.
     \item Experiments on the PanNuke dataset demonstrate competitive performance against state-of-the-art methods including CellPose-SAM, StarDist, LSP-DETR, and LKCell.
 \end{itemize}
 
@@ -96,16 +97,181 @@ As illustrated in \cref{fig:architecture}, WaveLKCell consists of four main comp
 
 Given an input H\&E image $\mathbf{X} \in \mathbb{R}^{3 \times H \times W}$, the encoder extracts multi-scale features $\{\mathbf{F}_1, \mathbf{F}_2, \mathbf{F}_3\}$ at three stages with dimensions $\{96, 192, 384\}$ and spatial resolutions $\{H/4, H/8, H/16\}$. The deepest features $\mathbf{F}_3$ are enhanced by the wavelet module to produce $\tilde{\mathbf{F}}_3$, which is then downsampled to $\mathbf{F}_4 \in \mathbb{R}^{768 \times H/32 \times W/32}$ for the decoder bottleneck.
 
-The decoder progressively upsamples features through three large-kernel decoder blocks with skip connections from $\mathbf{F}_3$, $\mathbf{F}_2$, and $\mathbf{F}_1$, followed by two additional upsampling stages that incorporate early input features. Three segmentation heads predict the nuclear pixel (NP) binary map, horizontal-vertical (HV) map, and nuclear type (NT) map. An auxiliary tissue classification head operates on global average-pooled wavelet features.
+The decoder progressively upsamples features through three large-kernel decoder blocks with skip connections from $\mathbf{F}_3$, $\mathbf{F}_2$, and $\mathbf{F}_1$, followed by two additional upsampling stages that incorporate early input features. Three segmentation heads predict the nuclear pixel (NP) binary map, horizontal-vertical (HV) map, and nuclear type (NT) map.
+
+\begin{figure*}[t]
+\centering
+\begin{tikzpicture}[
+    >=Stealth,
+    block/.style={
+        draw, rounded corners=2pt, minimum height=0.75cm, minimum width=2.0cm,
+        font=\footnotesize, align=center, line width=0.5pt, inner sep=3pt
+    },
+    enc/.style={block, fill=blue!10, draw=blue!60!black},
+    wav/.style={block, fill=orange!15, draw=orange!60!black},
+    dec/.style={block, fill=green!10, draw=green!50!black},
+    head/.style={block, fill=red!8, draw=red!50!black, minimum width=1.2cm, minimum height=0.65cm},
+    aux/.style={block, fill=yellow!15, draw=yellow!60!black},
+    arr/.style={->, draw=black!60, line width=0.6pt},
+    skip/.style={->, draw=blue!40, dashed, line width=0.5pt},
+]
+
+% ====== ENCODER (left, going DOWN) ======
+\node[block, fill=gray!8, draw=gray!50] (input) at (0, 0) {Input {\tiny $3{\times}H{\times}W$}};
+
+\node[enc] (stem) at (0, -1.0) {Stem {\tiny $4{\times}$down}};
+
+\node[enc] (s1) at (0, -2.2) {Stage 1 {\tiny $\mathbf{F}_1$}\\[-2pt]{\scriptsize 96ch, $H/4$}};
+
+\node[enc] (s2) at (0, -3.4) {Stage 2 {\tiny $\mathbf{F}_2$}\\[-2pt]{\scriptsize 192ch, $H/8$}};
+
+\node[enc] (s3) at (0, -4.6) {Stage 3 {\tiny $\mathbf{F}_3$}\\[-2pt]{\scriptsize 384ch, $H/16$}};
+
+% ====== BOTTLENECK (bottom center) ======
+\node[wav, minimum width=2.4cm] (we) at (3.8, -4.6) {Wavelet\\[-2pt]Enhance\\[-2pt]{\tiny(\cref{fig:wavelet})}};
+
+\node[wav, minimum width=2.0cm] (ds) at (3.8, -3.2) {Downsample\\[-2pt]{\tiny $384{\to}768$ch}};
+
+% ====== DECODER (right, going UP) ======
+\node[dec] (d3) at (3.8, -1.8) {Dec Block 3 {\tiny $K{=}13$}\\[-2pt]{\scriptsize $\mathbf{F}_4 \to 1024$ch}};
+
+\node[dec] (d2) at (3.8, -0.3) {Dec Block 2 {\tiny $K{=}27$}\\[-2pt]{\scriptsize $512$ch}};
+
+\node[dec] (d1) at (3.8, 1.2) {Dec Block 1 {\tiny $K{=}29$}\\[-2pt]{\scriptsize $256$ch}};
+
+\node[dec] (up2) at (3.8, 2.4) {Up $+$ Skip\\[-2pt]{\scriptsize $128$ch, $H/2$}};
+
+\node[dec] (up1) at (3.8, 3.5) {Up $+$ Skip\\[-2pt]{\scriptsize $64$ch, $1{\times}$}};
+
+% ====== HEADS (top right) ======
+\node[head] (np) at (6.8, 3.5) {NP Head\\[-2pt]{\tiny 2ch}};
+\node[head] (hv) at (6.8, 2.6) {HV Head\\[-2pt]{\tiny 2ch}};
+\node[head] (nt) at (6.8, 1.7) {NT Head\\[-2pt]{\tiny $N_c$ ch}};
+
+% ====== MAIN FLOW (encoder down) ======
+\draw[arr] (input) -- (stem);
+\draw[arr] (stem) -- (s1);
+\draw[arr] (s1) -- (s2);
+\draw[arr] (s2) -- (s3);
+
+% Encoder -> Wavelet -> Downsample (bottom, going right then up)
+\draw[arr] (s3) -- (we);
+\draw[arr] (we) -- (ds);
+
+% Downsample -> Decoder (going up)
+\draw[arr] (ds) -- (d3);
+\draw[arr] (d3) -- (d2);
+\draw[arr] (d2) -- (d1);
+\draw[arr] (d1) -- (up2);
+\draw[arr] (up2) -- (up1);
+
+% Heads
+\draw[arr] (up1) -- (np);
+\draw[arr] (up1) -- (hv);
+\draw[arr] (up1) -- (nt);
+
+% ====== SKIP CONNECTIONS (horizontal, encoder to decoder) ======
+\draw[skip] (s3.east) -- node[above, font=\tiny] {$\mathbf{F}_3$} (d3.west);
+\draw[skip] (s2.east) -- node[above, font=\tiny, pos=0.4] {$\mathbf{F}_2$} (d2.west);
+\draw[skip] (s1.east) -- node[above, font=\tiny, pos=0.3] {$\mathbf{F}_1$} (d1.west);
+
+% Input feature skips to extra upsampling
+\draw[skip, draw=gray!40] (stem.east) -- ++(0.6,0) |- node[near end, above, font=\tiny, text=gray!60] {input skip} (up2.west);
+\draw[skip, draw=gray!40] (input.east) -- ++(1.2,0) |- node[near end, above, font=\tiny, text=gray!60] {input skip} (up1.west);
+
+% ====== ANNOTATIONS ======
+\node[font=\scriptsize\bfseries, text=blue!60!black, rotate=90, anchor=south] at (-1.5, -2.4) {Encoder};
+\node[font=\scriptsize\bfseries, text=green!50!black, rotate=-90, anchor=south] at (5.0, 0.5) {Decoder};
+
+\end{tikzpicture}
+\caption{Overview of the WaveLKCell architecture in a U-shaped encoder-decoder layout. The large-kernel encoder (UniRepLKNet-S) extracts multi-scale features $\{\mathbf{F}_1, \mathbf{F}_2, \mathbf{F}_3\}$ at progressively lower resolutions. The Multi-Level Wavelet Enhancement module processes $\mathbf{F}_3$ through two-level Haar DWT/IDWT with frequency-specific processors (\cref{fig:wavelet}), producing the bottleneck $\mathbf{F}_4$. The decoder upsamples through three large-kernel blocks with skip connections (dashed blue), followed by two extra upsampling stages. Three heads predict NP, HV, and NT maps.}
+\label{fig:architecture}
+\end{figure*}
 
 \begin{figure}[t]
 \centering
-% TODO: Replace with actual architecture diagram
-\framebox[\columnwidth]{\parbox{0.9\columnwidth}{\centering\vspace{2em}\textbf{[Architecture Diagram]}\\\vspace{0.5em}
-\small Encoder (UniRepLKNet-S) $\rightarrow$ MultiWavelet Enhance $\rightarrow$ Decoder (LKCellBlocks) $\rightarrow$ NP / HV / NT Heads\\
-\vspace{1em}}}
-\caption{Overview of WaveLKCell architecture. The large-kernel encoder extracts multi-scale features. The Multi-Level Wavelet Enhancement module processes the deepest features ($\mathbf{F}_3$) through two-level DWT/IDWT with frequency-specific processors. Enhanced features are downsampled and decoded with skip connections. The tissue classification head uses global average-pooled wavelet features.}
-\label{fig:architecture}
+\begin{tikzpicture}[
+    >=Stealth,
+    block/.style={
+        draw, rounded corners=2pt, minimum height=0.65cm,
+        font=\scriptsize, align=center, line width=0.5pt, inner sep=3pt
+    },
+    dwt/.style={block, fill=orange!20, draw=orange!70!black, minimum width=1.4cm},
+    proc/.style={block, fill=orange!8, draw=orange!50!black, minimum width=1.6cm},
+    idwt/.style={block, fill=orange!20, draw=orange!70!black, minimum width=1.4cm},
+    arr/.style={->, draw=black!60, line width=0.5pt},
+    skiparr/.style={->, draw=blue!40, line width=0.4pt},
+]
+
+% Input
+\node[block, fill=blue!8, draw=blue!50!black, minimum width=1.2cm] (fin) at (0,0) {$\mathbf{F}_3$\\384ch};
+
+% DWT Level 1
+\node[dwt] (dwt1) at (2.2,0) {DWT\\Level 1};
+
+% Level 1 bands
+\node[proc] (hh1) at (4.5, 0.9) {APGConv\\(HH$_1$)};
+\node[proc] (lh1) at (4.5, 0.0) {Self-Attn\\(LH$_1$)};
+\node[proc] (hl1) at (4.5,-0.9) {Self-Attn\\(HL$_1$)};
+
+% DWT Level 2
+\node[dwt] (dwt2) at (2.2,-2.0) {DWT\\Level 2};
+
+% Level 2 bands
+\node[proc] (hh2) at (4.5,-1.5) {DWConv\\(HH$_2$)};
+\node[proc] (lh2) at (4.5,-2.3) {Ch-Attn\\(LH$_2$)};
+\node[proc] (hl2) at (4.5,-3.1) {Ch-Attn\\(HL$_2$)};
+\node[proc] (ll2) at (4.5,-3.9) {Conv\\(LL$_2$)};
+
+% IDWT Level 2
+\node[idwt] (idwt2) at (6.8,-2.7) {IDWT\\Level 2};
+
+% IDWT Level 1
+\node[idwt] (idwt1) at (6.8, 0.0) {IDWT\\Level 1};
+
+% Output
+\node[block, fill=blue!8, draw=blue!50!black, minimum width=1.2cm] (fout) at (9.0,0) {$\hat{\mathbf{F}}_3$};
+
+% Arrows: input -> DWT1
+\draw[arr] (fin) -- (dwt1);
+
+% DWT1 -> level 1 bands
+\draw[arr] (dwt1.north east) -- (hh1.west);
+\draw[arr] (dwt1.east) -- (lh1.west);
+\draw[arr] (dwt1.south east) -- (hl1.west);
+
+% DWT1 LL -> DWT2
+\draw[arr] (dwt1.south) -- node[left, font=\tiny] {LL$_1$} (dwt2.north);
+
+% DWT2 -> level 2 bands
+\draw[arr] (dwt2.north east) -- (hh2.west);
+\draw[arr] (dwt2.east) -- (lh2.west);
+\draw[arr] (dwt2.south east) -- (hl2.west);
+\draw[arr] (dwt2.south) |- (ll2.west);
+
+% Level 2 bands -> IDWT2
+\draw[arr] (hh2.east) -| (idwt2.north);
+\draw[arr] (lh2.east) -- (idwt2.west);
+\draw[arr] (hl2.east) -- (idwt2.west);
+\draw[arr] (ll2.east) -| (idwt2.south);
+
+% IDWT2 -> IDWT1
+\draw[arr] (idwt2.north) -- node[right, font=\tiny] {LL$'_1$} (idwt1.south);
+
+% Level 1 bands -> IDWT1 (skip connections)
+\draw[skiparr] (hh1.east) -- (idwt1.west);
+\draw[skiparr] (lh1.east) -| ([xshift=-2pt]idwt1.north west);
+\draw[skiparr] (hl1.east) -| ([xshift=2pt]idwt1.south west);
+
+% IDWT1 -> output
+\draw[arr] (idwt1) -- (fout);
+
+% Residual
+\draw[arr, draw=gray!50, dashed] (fin.south) -- ++(0,-4.2) -| node[pos=0.8, below, font=\tiny, text=gray!60] {$+$ residual} (fout.south);
+
+\end{tikzpicture}
+\caption{Detailed view of the Multi-Level Wavelet Enhancement module. The input $\mathbf{F}_3$ is decomposed by two-level Haar DWT. Each frequency sub-band is processed by a specialized module: APGConv for HH$_1$ (high-frequency boundaries), self-attention for LH$_1$/HL$_1$ (mid-high), channel attention for LH$_2$/HL$_2$ (mid-low), depthwise conv for HH$_2$, and conv for LL$_2$ (lowest). Enhanced bands are reconstructed via IDWT with a residual connection.}
+\label{fig:wavelet}
 \end{figure}
 
 \subsection{Large-Kernel Encoder}
@@ -203,21 +369,13 @@ The decoder output is fed to three segmentation heads, each consisting of batch 
     \item \textbf{NT Head}: Predicts an $N_c$-channel nuclear type map ($N_c$ nucleus classes).
 \end{itemize}
 
-\subsection{Auxiliary Tissue Classification}
-
-The wavelet-enhanced bottleneck features $\mathbf{F}_4$ are pooled via global average pooling and passed through a linear layer to predict tissue type:
-\begin{equation}
-    \hat{\mathbf{y}}_{\text{tissue}} = \mathbf{W}_{\text{tissue}} \cdot \text{GAP}(\mathbf{F}_4)
-\end{equation}
-This auxiliary task encourages the wavelet module to learn tissue-discriminative features, which regularizes the shared encoder and may benefit segmentation through richer feature representations.
-
 \subsection{Training Objectives}
 
-The total training loss combines four terms:
+The total training loss combines three terms:
 \begin{equation}
-    \mathcal{L} = \lambda_{\text{np}} \mathcal{L}_{\text{NP}} + \lambda_{\text{hv}} \mathcal{L}_{\text{HV}} + \lambda_{\text{type}} \mathcal{L}_{\text{type}} + \lambda_{\text{tissue}} \mathcal{L}_{\text{tissue}}
+    \mathcal{L} = \lambda_{\text{np}} \mathcal{L}_{\text{NP}} + \lambda_{\text{hv}} \mathcal{L}_{\text{HV}} + \lambda_{\text{type}} \mathcal{L}_{\text{type}}
 \end{equation}
-where $\mathcal{L}_{\text{NP}}$ and $\mathcal{L}_{\text{type}}$ are cross-entropy losses for binary and type prediction, $\mathcal{L}_{\text{HV}}$ is an MSE loss for the HV regression map, and $\mathcal{L}_{\text{tissue}}$ is a cross-entropy loss for tissue classification. We set $\lambda_{\text{np}}=\lambda_{\text{hv}}=\lambda_{\text{type}}=1.0$ and $\lambda_{\text{tissue}}=0.1$.
+where $\mathcal{L}_{\text{NP}}$ and $\mathcal{L}_{\text{type}}$ are cross-entropy losses for binary and type prediction, and $\mathcal{L}_{\text{HV}}$ is an MSE loss for the HV regression map. We set $\lambda_{\text{np}}=\lambda_{\text{hv}}=\lambda_{\text{type}}=1.0$.
 
 \subsection{Post-Processing}
 
@@ -293,7 +451,6 @@ We conduct ablation studies to validate each design choice.
 LKCell baseline (no wavelet) & [X.XXXX] & [X.XXXX] \\
 + Wavelet (all conv processors) & [X.XXXX] & [X.XXXX] \\
 + Wavelet (specialized processors) & [X.XXXX] & [X.XXXX] \\
-+ Tissue classification head & [X.XXXX] & [X.XXXX] \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -301,10 +458,6 @@ LKCell baseline (no wavelet) & [X.XXXX] & [X.XXXX] \\
 \subsubsection{Effect of Wavelet Enhancement}
 
 \cref{tab:ablation_wavelet} shows that adding the wavelet module improves segmentation quality over the LKCell baseline. Using specialized frequency-specific processors (APGConv, self-attention, channel attention) yields further gains over replacing all processors with standard convolutions, confirming that tailored frequency processing is beneficial.
-
-\subsubsection{Effect of Tissue Classification}
-
-Adding the auxiliary tissue classification branch provides additional supervision that improves the wavelet module's feature representations, leading to [TODO: describe improvement] in mPQ.
 
 %% ============================================================
 \section{Conclusion}
