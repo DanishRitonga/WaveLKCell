@@ -124,10 +124,10 @@ class WaveLKCellTrainer:
         self.optimizer.zero_grad()
 
     def _apply_warmup(self, ni: int, nw: int, base_lr: float) -> None:
-        if ni > nw:
+        if nw == 0 or ni > nw:
             return
         for pg in self.optimizer.param_groups:
-            pg["lr"] = np.interp(ni, [0, nw], [0.0, pg["lr"]])
+            pg["lr"] = np.interp(ni, [0, nw], [1e-8, pg["lr"]])
 
     @torch.no_grad()
     def _validate(self, loader: DataLoader, prefix: str) -> dict[str, float]:
@@ -201,7 +201,7 @@ class WaveLKCellTrainer:
 
     def fit(self) -> dict[str, float]:
         nb = len(self.train_loader)
-        nw = max(round(self.warmup_epochs * nb), 100)
+        nw = round(self.warmup_epochs * nb) if self.warmup_epochs > 0 else 0
         base_lr = self.optimizer.param_groups[0]["lr"]
         last_opt_step = -1
 
@@ -228,7 +228,13 @@ class WaveLKCellTrainer:
                     outputs = self.model(images)
                     losses = self.model.compute_loss(outputs, targets, self.loss_weights)
 
-                self.scaler.scale(losses["loss"]).backward()
+                loss_val = losses["loss"]
+                if not torch.isfinite(loss_val):
+                    print(f"  [epoch {epoch+1} batch {i}] NaN/Inf loss detected, skipping batch")
+                    self.optimizer.zero_grad()
+                    continue
+
+                self.scaler.scale(loss_val).backward()
 
                 if ni - last_opt_step >= self.accumulate:
                     self._optimizer_step(ni)

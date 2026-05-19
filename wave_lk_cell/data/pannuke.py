@@ -41,7 +41,7 @@ class PanNukeData:
 
     def setup(self, stage: str = "fit") -> None:
         print("Loading PanNuke dataset from HuggingFace...")
-        ds: DatasetDict = load_dataset("RationAI/PanNuke", trust_remote_code=True)
+        ds: DatasetDict = load_dataset("RationAI/PanNuke")
         print(f"  Loaded folds: {list(ds.keys())}")
         ds.set_transform(
             format_transform,
