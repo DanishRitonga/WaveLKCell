@@ -120,7 +120,7 @@ class BinaryPanopticQuality(Metric):
             matched = linear_assignment_fn(dists)
             for r, c in matched:
                 if dists[r, c] < 20.0:
-                    iou = (pred_masks[b, r] & gt_masks[b, c]).sum().float() / (pred_masks[b, r] | gt_masks[b, c]).sum().float() + 1e-8
+                    iou = (pred_masks[b, r].bool() & gt_masks[b, c].bool()).sum().float() / (pred_masks[b, r].bool() | gt_masks[b, c].bool()).sum().float() + 1e-8
                     if iou > 0.25:
                         iou_sum += iou.item()
                         matched_count += 1
