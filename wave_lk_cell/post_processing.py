@@ -6,7 +6,7 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 from scipy import ndimage
-from skimage.morphology import watershed
+from skimage.segmentation import watershed
 
 
 def _sobel_gradients(hv_map: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
