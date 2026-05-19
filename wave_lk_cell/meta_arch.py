@@ -235,8 +235,9 @@ class WaveLKCellMetaArch(pl.LightningModule):
         avg_bpq = torch.stack([v["bPQ"] for v in binary_metrics.values()]).mean()
         self.log("test/bPQ", avg_bpq)
 
-        for k, v in multiclass_metrics.items():
-            self.log(f"test/{k}", v)
+        for tissue, vals in multiclass_metrics.items():
+            for k, v in vals.items():
+                self.log(f"test/{tissue}_{k}", v)
 
         self.test_binary_metrics.reset()
         self.test_multiclass_metrics.reset()
@@ -245,7 +246,14 @@ class WaveLKCellMetaArch(pl.LightningModule):
         lr = self.optimizer_config.get("lr", 8e-4)
         betas = self.optimizer_config.get("betas", [0.85, 0.95])
         weight_decay = self.optimizer_config.get("weight_decay", 0.05)
-        optimizer = AdamW(self.parameters(), lr=lr, betas=betas, weight_decay=weight_decay)
+
+        backbone_params = list(self.backbone.parameters())
+        other_params = [p for p in self.parameters() if not any(p is bp for bp in backbone_params)]
+        param_groups = [
+            {"params": other_params},
+            {"params": backbone_params, "lr": lr * 0.1},
+        ]
+        optimizer = AdamW(param_groups, lr=lr, betas=betas, weight_decay=weight_decay)
 
         eta_min = self.scheduler_config.get("eta_min", 1e-5)
         t_max = self.scheduler_config.get("T_max", None)
