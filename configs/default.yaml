@@ -27,6 +27,9 @@ trainer:
     - _target_: lightning.pytorch.callbacks.BackboneFinetuning
       unfreeze_backbone_at_epoch: 25
       backbone_initial_ratio_lr: 0.1
+    - _target_: wave_lk_cell.callbacks.TestResultsSaver
+      output_dir: ${hydra:runtime.cwd}/test_results
+      experiment_name: ${metadata.experiment_name}
 
 data:
   _target_: wave_lk_cell.data.PanNuke
@@ -72,14 +75,12 @@ data:
 model:
   _target_: wave_lk_cell.meta_arch.WaveLKCellMetaArch
   num_classes: 5
-  num_tissue_classes: 19
   warmup_epochs: 0
   pretrained_encoder: true
   criterion:
     np_weight: 1.0
     hv_weight: 1.0
     type_weight: 1.0
-    tissue_weight: 0.1
 
 optimizer:
   _target_: torch.optim.AdamW
@@ -96,5 +97,5 @@ scheduler:
 
 metadata:
   experiment_name: WaveLKCell Nuclei Segmentation
-  run_name: ${now:%Y-%m-%d_%H-%M-%S}
+  run_name: unireplknet-s_pannuke_bs16_lr8e-4_${now:%Y%m%d_%H%M%S}
   description: WaveLKCell nuclei instance segmentation on PanNuke

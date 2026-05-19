@@ -54,7 +54,6 @@ class WaveLKCellMetaArch(pl.LightningModule):
     def __init__(
         self,
         num_classes: int = 5,
-        num_tissue_classes: int = 19,
         warmup_epochs: int = 0,
         pretrained_encoder: bool = False,
         criterion: dict[str, Any] | None = None,
@@ -65,20 +64,16 @@ class WaveLKCellMetaArch(pl.LightningModule):
         super().__init__()
         self.save_hyperparameters(ignore=["criterion"])
         self.num_classes = num_classes
-        self.num_tissue_classes = num_tissue_classes
         self.warmup_epochs = warmup_epochs
         self.criterion_config = criterion or {}
         self.optimizer_config = optimizer or {}
         self.scheduler_config = scheduler or {}
-        self.tissue_names: list[str] = []
 
         self.config = WaveLKCellConfig(
             num_nuclei_classes=num_classes,
-            num_tissue_classes=num_tissue_classes,
         )
         self.model = WaveLKCell(
             num_nuclei_classes=num_classes,
-            num_tissue_classes=num_tissue_classes,
             pretrained_encoder=pretrained_encoder,
         )
         self.backbone = self.model.encoder
@@ -105,22 +100,14 @@ class WaveLKCellMetaArch(pl.LightningModule):
         hv_loss = F.mse_loss(outputs["hv_map"], gt_hv.float())
         type_loss = F.cross_entropy(outputs["nuclei_type_map"], gt_type)
 
-        tissue_labels = torch.tensor(
-            [self.tissue_names.index(t["tissue"]) for t in targets],
-            device=outputs["tissue_types"].device,
-        )
-        tissue_loss = F.cross_entropy(outputs["tissue_types"], tissue_labels)
-
         np_weight = self.criterion_config.get("np_weight", 1.0)
         hv_weight = self.criterion_config.get("hv_weight", 1.0)
         type_weight = self.criterion_config.get("type_weight", 1.0)
-        tissue_weight = self.criterion_config.get("tissue_weight", 0.1)
 
         total_loss = (
             np_weight * np_loss
             + hv_weight * hv_loss
             + type_weight * type_loss
-            + tissue_weight * tissue_loss
         )
 
         return {
@@ -128,17 +115,10 @@ class WaveLKCellMetaArch(pl.LightningModule):
             "np_loss": np_loss,
             "hv_loss": hv_loss,
             "type_loss": type_loss,
-            "tissue_loss": tissue_loss,
         }
-
-    def _update_tissue_names(self, targets: list[dict]) -> None:
-        for t in targets:
-            if t["tissue"] not in self.tissue_names:
-                self.tissue_names.append(t["tissue"])
 
     def training_step(self, batch: tuple[torch.Tensor, list[dict]], batch_idx: int) -> torch.Tensor:
         images, targets = batch
-        self._update_tissue_names(targets)
         outputs = self(images)
         losses = self._compute_loss(outputs, targets)
 
@@ -149,7 +129,6 @@ class WaveLKCellMetaArch(pl.LightningModule):
 
     def validation_step(self, batch: tuple[torch.Tensor, list[dict]], batch_idx: int) -> None:
         images, targets = batch
-        self._update_tissue_names(targets)
         outputs = self(images)
         losses = self._compute_loss(outputs, targets)
 
@@ -160,7 +139,6 @@ class WaveLKCellMetaArch(pl.LightningModule):
 
     def test_step(self, batch: tuple[torch.Tensor, list[dict]], batch_idx: int) -> None:
         images, targets = batch
-        self._update_tissue_names(targets)
         outputs = self(images)
         self._update_instance_metrics(outputs, targets, "test")
 

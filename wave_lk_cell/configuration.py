@@ -10,7 +10,6 @@ class WaveLKCellConfig(PretrainedConfig):
         self,
         in_channels: int = 3,
         num_nuclei_classes: int = 5,
-        num_tissue_classes: int = 19,
         depths: tuple[int, ...] = (3, 3, 27),
         dims: tuple[int, ...] = (96, 192, 384),
         wavelet_out_channels: int = 768,
@@ -27,7 +26,6 @@ class WaveLKCellConfig(PretrainedConfig):
         super().__init__(**kwargs)
         self.in_channels = in_channels
         self.num_nuclei_classes = num_nuclei_classes
-        self.num_tissue_classes = num_tissue_classes
         self.depths = depths
         self.dims = dims
         self.drop_path_rate = drop_path_rate

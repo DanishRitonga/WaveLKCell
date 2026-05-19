@@ -34,7 +34,6 @@ class WaveLKCell(nn.Module):
         self,
         in_channels: int = 3,
         num_nuclei_classes: int = 5,
-        num_tissue_classes: int = 19,
         depths: tuple[int, ...] = (3, 3, 27),
         dims: tuple[int, ...] = (96, 192, 384),
         wavelet_out_channels: int = 768,
@@ -51,7 +50,6 @@ class WaveLKCell(nn.Module):
     ) -> None:
         super().__init__()
         self.num_nuclei_classes = num_nuclei_classes
-        self.num_tissue_classes = num_tissue_classes
 
         self.encoder = LKCellEncoder(
             in_channels=in_channels,
@@ -81,8 +79,6 @@ class WaveLKCell(nn.Module):
         self.hv_head = SegmentationHead(decoder_channels[-1], 2)
         self.nt_head = SegmentationHead(decoder_channels[-1], num_nuclei_classes)
 
-        self.tissue_head = nn.Linear(wavelet_out_channels, num_tissue_classes)
-
         if pretrained_encoder:
             try:
                 load_unireplknet_s_encoder(self.encoder, cache_dir=pretrained_encoder_path)
@@ -95,13 +91,10 @@ class WaveLKCell(nn.Module):
         enhanced = self.wavelet_enhance(stage_features[2])
         wavelet_feature = self.wavelet_downsample(enhanced)
 
-        tissue_logits = self.tissue_head(wavelet_feature.mean(dim=[-2, -1]))
-
         all_features = list(stage_features) + [wavelet_feature]
         decoder_out = self.decoder(all_features, input_features)
 
         return {
-            "tissue_types": tissue_logits,
             "nuclei_binary_map": self.np_head(decoder_out),
             "hv_map": self.hv_head(decoder_out),
             "nuclei_type_map": self.nt_head(decoder_out),
