@@ -36,7 +36,6 @@
 \citation{waveconvx}
 \citation{waveconvx}
 \citation{waveconvx}
-\citation{waveconvx}
 \@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {II-B}}Wavelet Transforms in Medical Imaging}{2}{subsection.2.2}\protected@file@percent }
 \@writefile{toc}{\contentsline {section}{\numberline {III}Methodology}{2}{section.3}\protected@file@percent }
 \newlabel{sec:method}{{III}{2}{Methodology}{section.3}{}}
@@ -44,48 +43,44 @@
 \@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {III-A}}Overview}{2}{subsection.3.1}\protected@file@percent }
 \@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {III-B}}Large-Kernel Encoder}{2}{subsection.3.2}\protected@file@percent }
 \@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {III-C}}Multi-Level Wavelet Enhancement}{2}{subsection.3.3}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {III-C}1}Two-Level Haar DWT}{2}{subsubsection.3.3.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {III-C}1}Wavelet Decomposition}{2}{subsubsection.3.3.1}\protected@file@percent }
 \@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {III-C}2}Frequency-Specific Processing}{2}{subsubsection.3.3.2}\protected@file@percent }
 \citation{waveconvx}
-\citation{waveconvx}
-\citation{waveconvx}
-\citation{waveconvx}
-\citation{waveconvx}
+\citation{lkcell}
 \@writefile{lof}{\contentsline {figure}{\numberline {1}{\ignorespaces Overview of the WaveLKCell architecture in a U-shaped encoder-decoder layout. The large-kernel encoder (UniRepLKNet-S) extracts multi-scale features $\{\mathbf  {F}_1, \mathbf  {F}_2, \mathbf  {F}_3\}$ at progressively lower resolutions. The Multi-Level Wavelet Enhancement module processes $\mathbf  {F}_3$ through two-level Haar DWT/IDWT with frequency-specific processors (\cref  {fig:wavelet}), producing the bottleneck $\mathbf  {F}_4$. The decoder upsamples through three large-kernel blocks with skip connections, followed by two extra upsampling stages. Three heads predict NP, HV, and NT maps.}}{3}{figure.caption.1}\protected@file@percent }
 \providecommand*\caption@xref[2]{\@setref\relax\@undefined{#1}}
 \newlabel{fig:architecture}{{1}{3}{Overview of the WaveLKCell architecture in a U-shaped encoder-decoder layout. The large-kernel encoder (UniRepLKNet-S) extracts multi-scale features $\{\mathbf {F}_1, \mathbf {F}_2, \mathbf {F}_3\}$ at progressively lower resolutions. The Multi-Level Wavelet Enhancement module processes $\mathbf {F}_3$ through two-level Haar DWT/IDWT with frequency-specific processors (\cref {fig:wavelet}), producing the bottleneck $\mathbf {F}_4$. The decoder upsamples through three large-kernel blocks with skip connections, followed by two extra upsampling stages. Three heads predict NP, HV, and NT maps}{figure.caption.1}{}}
 \newlabel{fig:architecture@cref}{{[figure][1][]1}{[1][2][]3}{}{}{}}
-\citation{lkcell}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {III-C}3}Reconstruction}{3}{subsubsection.3.3.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {III-D}}Large-Kernel Decoder}{3}{subsection.3.4}\protected@file@percent }
 \citation{hoevernet}
 \citation{pannuke}
-\@writefile{lof}{\contentsline {figure}{\numberline {2}{\ignorespaces Detailed view of the Multi-Level Wavelet Enhancement module. The input $\mathbf  {F}_3$ is decomposed by two-level Haar DWT. Each frequency sub-band is processed by a specialized module: APGConv for HH$_1$ (high-frequency boundaries), self-attention for LH$_1$/HL$_1$ (mid-high), channel attention for LH$_2$/HL$_2$ (mid-low), depthwise conv for HH$_2$, and conv for LL$_2$ (lowest). Enhanced bands are reconstructed via IDWT with a residual connection.}}{4}{figure.caption.2}\protected@file@percent }
-\newlabel{fig:wavelet}{{2}{4}{Detailed view of the Multi-Level Wavelet Enhancement module. The input $\mathbf {F}_3$ is decomposed by two-level Haar DWT. Each frequency sub-band is processed by a specialized module: APGConv for HH$_1$ (high-frequency boundaries), self-attention for LH$_1$/HL$_1$ (mid-high), channel attention for LH$_2$/HL$_2$ (mid-low), depthwise conv for HH$_2$, and conv for LL$_2$ (lowest). Enhanced bands are reconstructed via IDWT with a residual connection}{figure.caption.2}{}}
-\newlabel{fig:wavelet@cref}{{[figure][2][]2}{[1][2][]4}{}{}{}}
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {III-C}3}Reconstruction}{4}{subsubsection.3.3.3}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {III-D}}Large-Kernel Decoder}{4}{subsection.3.4}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {III-E}}Training Objectives}{4}{subsection.3.5}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {III-F}}Post-Processing}{4}{subsection.3.6}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {IV}Experiments}{4}{section.4}\protected@file@percent }
-\newlabel{sec:exp}{{IV}{4}{Experiments}{section.4}{}}
-\newlabel{sec:exp@cref}{{[section][4][]IV}{[1][4][]4}{}{}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {IV-A}}Dataset and Metrics}{4}{subsection.4.1}\protected@file@percent }
 \citation{stardist}
 \citation{cellpose}
 \citation{lsp_detr}
 \citation{lkcell}
+\@writefile{lof}{\contentsline {figure}{\numberline {2}{\ignorespaces Detailed view of the Multi-Level Wavelet Enhancement module. The input $\mathbf  {F}_3$ is decomposed by two-level Haar DWT. Each frequency sub-band is processed by a specialized module: APGConv for HH$_1$ (high-frequency boundaries), self-attention for LH$_1$/HL$_1$ (mid-high), channel attention for LH$_2$/HL$_2$ (mid-low), depthwise conv for HH$_2$, and conv for LL$_2$ (lowest). Enhanced bands are reconstructed via IDWT with a residual connection.}}{4}{figure.caption.2}\protected@file@percent }
+\newlabel{fig:wavelet}{{2}{4}{Detailed view of the Multi-Level Wavelet Enhancement module. The input $\mathbf {F}_3$ is decomposed by two-level Haar DWT. Each frequency sub-band is processed by a specialized module: APGConv for HH$_1$ (high-frequency boundaries), self-attention for LH$_1$/HL$_1$ (mid-high), channel attention for LH$_2$/HL$_2$ (mid-low), depthwise conv for HH$_2$, and conv for LL$_2$ (lowest). Enhanced bands are reconstructed via IDWT with a residual connection}{figure.caption.2}{}}
+\newlabel{fig:wavelet@cref}{{[figure][2][]2}{[1][2][]4}{}{}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {III-E}}Training Objectives}{4}{subsection.3.5}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {III-F}}Post-Processing}{4}{subsection.3.6}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {I}{\ignorespaces Comparison with state-of-the-art methods on the PanNuke dataset. Best results are in \textbf  {bold}. $\dagger $ indicates numbers from original papers.}}{4}{table.caption.3}\protected@file@percent }
+\newlabel{tab:comparison}{{I}{4}{Comparison with state-of-the-art methods on the PanNuke dataset. Best results are in \textbf {bold}. $\dagger $ indicates numbers from original papers}{table.caption.3}{}}
+\newlabel{tab:comparison@cref}{{[table][1][]I}{[1][4][]4}{}{}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {II}{\ignorespaces Ablation study on the wavelet enhancement module.}}{4}{table.caption.4}\protected@file@percent }
+\newlabel{tab:ablation_wavelet}{{II}{4}{Ablation study on the wavelet enhancement module}{table.caption.4}{}}
+\newlabel{tab:ablation_wavelet@cref}{{[table][2][]II}{[1][4][]4}{}{}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {IV}Experiments}{4}{section.4}\protected@file@percent }
+\newlabel{sec:exp}{{IV}{4}{Experiments}{section.4}{}}
+\newlabel{sec:exp@cref}{{[section][4][]IV}{[1][4][]4}{}{}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {IV-A}}Dataset and Metrics}{4}{subsection.4.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {IV-B}}Implementation Details}{4}{subsection.4.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {IV-C}}Comparison with State-of-the-Art}{4}{subsection.4.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {IV-D}}Ablation Studies}{4}{subsection.4.4}\protected@file@percent }
 \citation{waveconvx}
 \citation{lkcell}
 \bibstyle{IEEEtran}
 \bibdata{references}
-\@writefile{lot}{\contentsline {table}{\numberline {I}{\ignorespaces Comparison with state-of-the-art methods on the PanNuke dataset. Best results are in \textbf  {bold}. $\dagger $ indicates numbers from original papers.}}{5}{table.caption.3}\protected@file@percent }
-\newlabel{tab:comparison}{{I}{5}{Comparison with state-of-the-art methods on the PanNuke dataset. Best results are in \textbf {bold}. $\dagger $ indicates numbers from original papers}{table.caption.3}{}}
-\newlabel{tab:comparison@cref}{{[table][1][]I}{[1][5][]5}{}{}{}}
-\@writefile{lot}{\contentsline {table}{\numberline {II}{\ignorespaces Ablation study on the wavelet enhancement module.}}{5}{table.caption.4}\protected@file@percent }
-\newlabel{tab:ablation_wavelet}{{II}{5}{Ablation study on the wavelet enhancement module}{table.caption.4}{}}
-\newlabel{tab:ablation_wavelet@cref}{{[table][2][]II}{[1][5][]5}{}{}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {IV-B}}Implementation Details}{5}{subsection.4.2}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {IV-C}}Comparison with State-of-the-Art}{5}{subsection.4.3}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {IV-D}}Ablation Studies}{5}{subsection.4.4}\protected@file@percent }
 \@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {IV-D}1}Effect of Wavelet Enhancement}{5}{subsubsection.4.4.1}\protected@file@percent }
 \@writefile{toc}{\contentsline {section}{\numberline {V}Conclusion}{5}{section.5}\protected@file@percent }
 \newlabel{sec:conclusion}{{V}{5}{Conclusion}{section.5}{}}

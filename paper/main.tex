@@ -123,72 +123,41 @@ The encoder stem downsamples the input by $4\times$ through two consecutive stri
 
 \subsection{Multi-Level Wavelet Enhancement}
 
-Following WaveConvX~\cite{waveconvx}, we integrate a multi-level wavelet enhancement module at the bottleneck of our architecture, applied to the deepest encoder features $\mathbf{F}_3 \in \mathbb{R}^{C \times H' \times W'}$ where $C=384$. This module decomposes features into frequency sub-bands, applies the frequency-specific processors from WaveConvX~\cite{waveconvx}, and reconstructs enhanced features.
+To address the high-frequency loss introduced by large kernels, we integrate the multi-level wavelet enhancement module of Zhang et al.~\cite{waveconvx} at the bottleneck of our architecture. This module decomposes the deepest encoder features $\mathbf{F}_3 \in \mathbb{R}^{C \times H' \times W'}$ ($C=384$) into frequency sub-bands via two-level Haar DWT, applies frequency-specific processing to each sub-band, and reconstructs enhanced features via IDWT.
 
-\subsubsection{Two-Level Haar DWT}
+\subsubsection{Wavelet Decomposition}
 
-Following WaveConvX~\cite{waveconvx}, we apply two successive levels of the 2D Haar Discrete Wavelet Transform (DWT). The first level decomposes the input into four sub-bands:
+A two-level Haar DWT is applied to $\mathbf{F}_3$, yielding seven sub-bands:
 \begin{equation}
-    \text{DWT}(\mathbf{F}_3) = \{\text{LL}_1, \text{LH}_1, \text{HL}_1, \text{HH}_1\}
+    \{\text{LL}_2, \text{LH}_2, \text{HL}_2, \text{HH}_2, \text{LH}_1, \text{HL}_1, \text{HH}_1\}
 \end{equation}
-where LL$_1$ contains low-frequency approximation coefficients, and LH$_1$, HL$_1$, HH$_1$ contain horizontal, vertical, and diagonal high-frequency detail coefficients, respectively. Each sub-band has spatial resolution $H'/2 \times W'/2$.
-
-The second level further decomposes the approximation coefficients:
-\begin{equation}
-    \text{DWT}(\text{LL}_1) = \{\text{LL}_2, \text{LH}_2, \text{HL}_2, \text{HH}_2\}
-\end{equation}
-yielding sub-bands at resolution $H'/4 \times W'/4$.
-
-We implement the Haar DWT efficiently using strided convolutions with fixed wavelet kernels, grouped by channel to ensure independent transformation per channel with minimal computational overhead, as described in WaveConvX~\cite{waveconvx}.
+at resolutions $H'/4 \times W'/4$ and $H'/2 \times W'/2$, where LL contains low-frequency approximations and LH, HL, HH capture horizontal, vertical, and diagonal detail coefficients, respectively. The DWT is implemented via strided convolutions with fixed Haar kernels~\cite{waveconvx}.
 
 \subsubsection{Frequency-Specific Processing}
 
-Following the design of~\cite{waveconvx}, each frequency sub-band is processed by a specialized module (\cref{fig:wavelet}):
+As proposed in WaveConvX~\cite{waveconvx}, each frequency group is processed by a dedicated module (\cref{fig:wavelet}). Rather than detailing each processor here (see~\cite{waveconvx} for full descriptions), we summarize the processing strategy and highlight adaptations made for our segmentation task:
 
-\textbf{High Frequency Processor (HH$_1$) --- Adaptive Power Gabor Convolution (APGConv)~\cite{waveconvx}:}
-The HH$_1$ sub-band captures fine boundary details and nuclear texture. APGConv~\cite{waveconvx} enhances these features using learnable Gabor filters with an adaptive power exponent. For each output channel $k$, we define a Gabor function on a $5{\times}5$ grid:
-\begin{equation}
-    g_k(x,y) = \exp\!\left(-\frac{x_\theta^2 + \gamma_k^2 y_\theta^2}{2\sigma_k^2}\right) \cos\!\left(\frac{2\pi x_\theta}{\lambda_k}\right)
-\end{equation}
-where $x_\theta = x\cos\theta_k + y\sin\theta_k$ and $y_\theta = -x\sin\theta_k + y\cos\theta_k$ are rotated coordinates with learnable orientation $\theta_k$, and $\sigma_k$, $\gamma_k$, $\lambda_k$ control the filter shape.
+\textbf{High Frequency (HH$_1$)} is processed by Adaptive Power Gabor Convolution (APGConv)~\cite{waveconvx}, which applies learnable Gabor filters with an adaptive power exponent $\alpha_k$. This exponent controls the nonlinearity of the filter response: $\alpha_k < 1$ amplifies subtle texture variations, while $\alpha_k > 1$ emphasizes strong edges, making it particularly suited for nuclear boundary detection.
 
-The key innovation is the adaptive power transformation:
-\begin{equation}
-    g'_k = \text{sign}(g_k) \cdot |g_k|^{\alpha_k}
-\end{equation}
-where $\alpha_k \in (0.1, 3.0)$ is a learnable parameter. When $\alpha_k < 1$, the filter compresses large responses while amplifying subtle texture variations; when $\alpha_k > 1$, it emphasizes strong signals. The final kernel combines the fractional Gabor response with learnable weights:
-\begin{equation}
-    \mathbf{W}_k = \mathbf{W}_k^{\text{conv}} \odot g'_k
-\end{equation}
-followed by GELU activation and batch normalization.
+\textbf{Mid-High Frequency (LH$_1$, HL$_1$)} is processed by multi-head self-attention ($4$ heads) to model spatial dependencies in transitional edge structures~\cite{waveconvx}. A key difference from WaveConvX is that we process LH$_1$ and HL$_1$ independently with shared weights rather than averaging them, preserving the directional information required by the subsequent IDWT reconstruction.
 
-\textbf{Mid-High Frequency Processor (LH$_1$, HL$_1$) --- Self-Attention~\cite{waveconvx}:}
-The LH$_1$ and HL$_1$ sub-bands contain transitional edge structures. Following WaveConvX~\cite{waveconvx}, we apply multi-head self-attention ($4$ heads) to capture long-range spatial dependencies in these frequency components, followed by batch normalization and GELU activation. Unlike WaveConvX~\cite{waveconvx}, which averages the LH$_1$ and HL$_1$ outputs, we process them independently with shared weights to preserve directional information required by the subsequent IDWT reconstruction.
+\textbf{Mid Frequency (HH$_2$)} is processed by depthwise separable convolution for local feature refinement.
 
-\textbf{Second Wavelet Decomposition:}
-The LL$_1$ approximation coefficients from the first-level DWT are further decomposed by a second DWT into $\{\text{LL}_2, \text{LH}_2, \text{HL}_2, \text{HH}_2\}$ at resolution $H'/4 \times W'/4$.
+\textbf{Mid-Low Frequency (LH$_2$, HL$_2$)} is processed by squeeze-and-excitation channel attention~\cite{waveconvx}, followed by a $3{\times}3$ convolution, to recalibrate channel-wise feature responses.
 
-\textbf{Mid Frequency Processor (HH$_2$) --- Depthwise Pointwise Convolution:}
-The second-level diagonal detail band is processed by a depthwise separable convolution for efficient local feature refinement.
-
-\textbf{Mid-Low Frequency Processor (LH$_2$, HL$_2$) --- Channel Attention~\cite{waveconvx}:}
-The second-level horizontal and vertical detail bands are processed by squeeze-and-excitation style channel attention~\cite{waveconvx}, which recalibrates feature responses across channels to emphasize informative frequency components, followed by a $3{\times}3$ convolution.
-
-\textbf{Low Frequency Processor (LL$_2$) --- Convolution:}
-The coarsest approximation coefficients are processed by a standard $3{\times}3$ convolution with batch normalization and GELU activation.
+\textbf{Low Frequency (LL$_2$)} is processed by a standard $3{\times}3$ convolution with batch normalization and GELU activation.
 
 \subsubsection{Reconstruction}
 
-The enhanced sub-bands are reconstructed via two levels of Inverse DWT (IDWT):
-\begin{align}
-    \text{LL}'_1 &= \text{IDWT}(\text{LL}'_2, \text{LH}'_2, \text{HL}'_2, \text{HH}'_2) \\
-    \tilde{\mathbf{F}}_3 &= \text{IDWT}(\text{LL}'_1, \text{LH}'_1, \text{HL}'_1, \text{HH}'_1)
-\end{align}
+The enhanced sub-bands are reconstructed via two-level IDWT:
+\begin{equation}
+    \text{LL}'_1 = \text{IDWT}(\text{LL}'_2, \text{LH}'_2, \text{HL}'_2, \text{HH}'_2), \quad
+    \tilde{\mathbf{F}}_3 = \text{IDWT}(\text{LL}'_1, \text{LH}'_1, \text{HL}'_1, \text{HH}'_1)
+\end{equation}
 A residual connection preserves the original features:
 \begin{equation}
     \hat{\mathbf{F}}_3 = \mathbf{F}_3 + \tilde{\mathbf{F}}_3
 \end{equation}
-
 The wavelet-enhanced features $\hat{\mathbf{F}}_3$ are then downsampled by a strided convolution with layer normalization to produce the bottleneck features $\mathbf{F}_4 \in \mathbb{R}^{768 \times H/32 \times W/32}$ for the decoder.
 
 \subsection{Large-Kernel Decoder}
