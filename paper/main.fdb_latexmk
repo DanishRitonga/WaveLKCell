@@ -1,5 +1,5 @@
 # Fdb version 4
-["bibtex main"] 0 "main.aux" "main.bbl" "main" 1779248500.97055 0
+["bibtex main"] 0 "main.aux" "main.bbl" "main" 1779273595.88265 0
   "/usr/share/texlive/texmf-dist/bibtex/bst/ieeetran/IEEEtran.bst" 1440712899 57748 7c8250ecf02814ce6ddc0cdbb63df1dd ""
   "main.aux" 0 -1 0 "pdflatex"
   "references.bib" 0 -1 0 ""
@@ -7,7 +7,7 @@
   "main.bbl"
   "main.blg"
   (rewritten before read)
-["pdflatex"] 1779248500.25955 "main.tex" "main.pdf" "main" 1779248500.9709 0
+["pdflatex"] 1779273595.13035 "main.tex" "main.pdf" "main" 1779273595.88308 0
   "/etc/texmf/web2c/texmf.cnf" 1778816988.72241 475 c0e671620eb5563b2130f56340a5fde8 ""
   "/usr/share/texlive/texmf-dist/fonts/enc/dvips/base/8r.enc" 1165713224 4850 80dc9bab7f31fb78a000ccfed0e27cab ""
   "/usr/share/texlive/texmf-dist/fonts/map/fontname/texfonts.map" 1577235249 3524 cb3e574dea2d1052e39280babc910dc8 ""
@@ -44,16 +44,12 @@
   "/usr/share/texlive/texmf-dist/fonts/tfm/public/cm/cmsy6.tfm" 1136768653 1116 933a60c408fc0a863a92debe84b2d294 ""
   "/usr/share/texlive/texmf-dist/fonts/tfm/public/cm/cmsy8.tfm" 1136768653 1120 8b7d695260f3cff42e636090a8002094 ""
   "/usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmbx10.pfb" 1248133631 34811 78b52f49e893bcba91bd7581cdc144c0 ""
-  "/usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmbx5.pfb" 1248133631 32034 6149cc3792d7e291632994f6e6ca6d68 ""
-  "/usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmbx7.pfb" 1248133631 32007 e8fa0078355f39467039935974716569 ""
   "/usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmex10.pfb" 1248133631 30251 6afa5cb1d0204815a708a080681d4674 ""
   "/usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi10.pfb" 1248133631 36299 5f9df58c2139e7edcf37c8fca4bd384d ""
   "/usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi5.pfb" 1248133631 37912 77d683123f92148345f3fc36a38d9ab1 ""
   "/usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi7.pfb" 1248133631 36281 c355509802a035cadc5f15869451dcee ""
   "/usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmr10.pfb" 1248133631 35752 024fb6c41858982481f6968b5fc26508 ""
-  "/usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmr5.pfb" 1248133631 31809 8670ca339bf94e56da1fc21c80635e2a ""
   "/usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmr7.pfb" 1248133631 32762 224316ccc9ad3ca0423a14971cfa7fc1 ""
-  "/usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmr8.pfb" 1248133631 32726 0a1aea6fcd6468ee2cf64d891f5c43c8 ""
   "/usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy10.pfb" 1248133631 32569 5e5ddc8df908dea60932f3c484a54c0d ""
   "/usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy5.pfb" 1248133631 32915 7bf7720c61a5b3a7ff25b0964421c9b6 ""
   "/usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy6.pfb" 1248133631 32587 1788b0c1c5b39540c96f5e42ccd6dae8 ""
@@ -204,10 +200,12 @@
   "/usr/share/texmf/web2c/texmf.cnf" 1769369718 41603 27f93b3067076450172040dcd57ca8b3 ""
   "/var/lib/texmf/fonts/map/pdftex/updmap/pdftex.map" 1778817337 198341 42d69474941b2ac8ebd9d4d42a15bc3e ""
   "/var/lib/texmf/web2c/pdftex/pdflatex.fmt" 1778817347 2358387 c3e4feeabb42d68618771edb3da3436f ""
-  "main.aux" 1779248500.85948 8050 61acbd93bcd693a4cbbc44a179e62efd "pdflatex"
+  "fig/WaveLKCell-architecture.png" 1779273064.79808 159261 bfaf3d9d93b36262bc38f82631c1832e ""
+  "fig/WaveLKCell-waveEnhance.png" 1779273467.88507 150426 5ff0c6b2ad77eb7d655e5a4a6c6e54ec ""
+  "main.aux" 1779273595.72829 8022 190039b35440710409236523d4ce5d58 "pdflatex"
   "main.bbl" 0 -1 0 "bibtex main"
-  "main.out" 1779248500.86164 3316 ac57804bc138294066a17cd14e0ef4ff "pdflatex"
-  "main.tex" 1779248499.93747 31223 ff25198b216347c7d9da46a1aa3a33bd ""
+  "main.out" 1779273595.72929 3316 ac57804bc138294066a17cd14e0ef4ff "pdflatex"
+  "main.tex" 1779273593.86227 24960 1bb0ef7e4aaa68b72b8d45c3dd84c052 ""
   (generated)
   "main.aux"
   "main.log"

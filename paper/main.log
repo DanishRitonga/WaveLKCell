@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.28 (TeX Live 2025/Debian) (preloaded format=pdflatex 2026.5.15)  20 MAY 2026 10:41
+This is pdfTeX, Version 3.141592653-2.6-1.40.28 (TeX Live 2025/Debian) (preloaded format=pdflatex 2026.5.15)  20 MAY 2026 17:40
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -941,84 +941,94 @@ LaTeX Warning: Citation `waveconvx' on page 2 undefined on input line 85.
 
 LaTeX Warning: Citation `unireplknet' on page 2 undefined on input line 96.
 
+<fig/WaveLKCell-architecture.png, id=105, 1909.1325pt x 1266.7325pt>
+File: fig/WaveLKCell-architecture.png Graphic file (type png)
+<use fig/WaveLKCell-architecture.png>
+Package pdftex.def Info: fig/WaveLKCell-architecture.png  used on input line 10
+4.
+(pdftex.def)             Requested size: 516.0pt x 342.37027pt.
+<fig/WaveLKCell-waveEnhance.png, id=109, 1174.3875pt x 917.4275pt>
+File: fig/WaveLKCell-waveEnhance.png Graphic file (type png)
+<use fig/WaveLKCell-waveEnhance.png>
+Package pdftex.def Info: fig/WaveLKCell-waveEnhance.png  used on input line 111
+.
+(pdftex.def)             Requested size: 252.0pt x 196.8511pt.
 
-Overfull \hbox (38.71791pt too wide) in paragraph at lines 275--276
- [][] 
- []
-
-
-LaTeX Warning: Citation `lkcell' on page 2 undefined on input line 282.
-
-
-LaTeX Warning: Citation `unireplknet' on page 2 undefined on input line 282.
-
-
-LaTeX Warning: Citation `waveconvx' on page 2 undefined on input line 290.
-
-
-LaTeX Warning: Citation `waveconvx' on page 2 undefined on input line 290.
+LaTeX Warning: Citation `lkcell' on page 2 undefined on input line 118.
 
 
-LaTeX Warning: Citation `waveconvx' on page 2 undefined on input line 294.
+LaTeX Warning: Citation `unireplknet' on page 2 undefined on input line 118.
 
 
-LaTeX Warning: Citation `waveconvx' on page 2 undefined on input line 306.
+LaTeX Warning: Citation `waveconvx' on page 2 undefined on input line 126.
 
 
-LaTeX Warning: Citation `waveconvx' on page 2 undefined on input line 310.
+LaTeX Warning: Citation `waveconvx' on page 2 undefined on input line 126.
 
 
-LaTeX Warning: Citation `waveconvx' on page 2 undefined on input line 312.
+LaTeX Warning: Citation `waveconvx' on page 2 undefined on input line 130.
 
 
-LaTeX Warning: Citation `waveconvx' on page 2 undefined on input line 313.
+LaTeX Warning: Citation `waveconvx' on page 2 undefined on input line 142.
+
+
+LaTeX Warning: Citation `waveconvx' on page 2 undefined on input line 146.
+
+
+LaTeX Warning: Citation `waveconvx' on page 2 undefined on input line 148.
+
+
+LaTeX Warning: Citation `waveconvx' on page 2 undefined on input line 149.
 
 [2]
 
-LaTeX Warning: Citation `waveconvx' on page 3 undefined on input line 329.
+LaTeX Warning: Citation `waveconvx' on page 3 undefined on input line 165.
 
 
-LaTeX Warning: Citation `waveconvx' on page 3 undefined on input line 330.
+LaTeX Warning: Citation `waveconvx' on page 3 undefined on input line 166.
 
 
-LaTeX Warning: Citation `waveconvx' on page 3 undefined on input line 332.
+LaTeX Warning: Citation `waveconvx' on page 3 undefined on input line 168.
 
 
-LaTeX Warning: Citation `waveconvx' on page 3 undefined on input line 333.
-
-[3]
-
-LaTeX Warning: Citation `lkcell' on page 4 undefined on input line 357.
+LaTeX Warning: Citation `waveconvx' on page 3 undefined on input line 169.
 
 
-LaTeX Warning: Citation `hoevernet' on page 4 undefined on input line 385.
+Underfull \vbox (badness 10000) has occurred while \output is active []
+
+ [3 <./fig/WaveLKCell-architecture.png>]
+
+LaTeX Warning: Citation `lkcell' on page 4 undefined on input line 193.
 
 
-LaTeX Warning: Citation `pannuke' on page 4 undefined on input line 394.
+LaTeX Warning: Citation `hoevernet' on page 4 undefined on input line 221.
 
 
-LaTeX Warning: Citation `stardist' on page 4 undefined on input line 417.
+LaTeX Warning: Citation `pannuke' on page 4 undefined on input line 230.
 
 
-LaTeX Warning: Citation `cellpose' on page 4 undefined on input line 418.
+LaTeX Warning: Citation `stardist' on page 4 undefined on input line 253.
 
 
-LaTeX Warning: Citation `lsp_detr' on page 4 undefined on input line 419.
+LaTeX Warning: Citation `cellpose' on page 4 undefined on input line 254.
 
 
-LaTeX Warning: Citation `lkcell' on page 4 undefined on input line 420.
+LaTeX Warning: Citation `lsp_detr' on page 4 undefined on input line 255.
 
 
-Underfull \hbox (badness 3333) in paragraph at lines 427--428
+LaTeX Warning: Citation `lkcell' on page 4 undefined on input line 256.
+
+
+Underfull \hbox (badness 3333) in paragraph at lines 263--264
 \OT1/ptm/m/n/10 ods. WaveLK-Cell demon-strates com-pet-i-tive per-for-mance
  []
 
-[4]
+[4 <./fig/WaveLKCell-waveEnhance.png>]
 
-LaTeX Warning: Citation `waveconvx' on page 5 undefined on input line 470.
+LaTeX Warning: Citation `waveconvx' on page 5 undefined on input line 306.
 
 
-LaTeX Warning: Citation `lkcell' on page 5 undefined on input line 470.
+LaTeX Warning: Citation `lkcell' on page 5 undefined on input line 306.
 
 No file main.bbl.
 
@@ -1047,36 +1057,33 @@ Package rerunfilecheck Info: File `main.out' has not changed.
 (rerunfilecheck)             Checksum: AC57804BC138294066A17CD14E0EF4FF;3316.
  ) 
 Here is how much of TeX's memory you used:
- 26346 strings out of 468921
- 508929 string characters out of 5457478
- 919299 words of memory out of 5000000
- 54714 multiletter control sequences out of 15000+600000
- 672254 words of font info for 131 fonts, out of 8000000 for 9000
+ 25990 strings out of 468921
+ 503156 string characters out of 5457478
+ 896242 words of memory out of 5000000
+ 54360 multiletter control sequences out of 15000+600000
+ 670069 words of font info for 129 fonts, out of 8000000 for 9000
  309 hyphenation exceptions out of 8191
- 84i,14n,94p,1578b,867s stack positions out of 10000i,1000n,20000p,200000b,200000s
+ 84i,14n,94p,1578b,455s stack positions out of 10000i,1000n,20000p,200000b,200000s
 </usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmbx10.pfb></us
-r/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmbx5.pfb></usr/share
-/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmbx7.pfb></usr/share/texliv
-e/texmf-dist/fonts/type1/public/amsfonts/cm/cmex10.pfb></usr/share/texlive/texm
-f-dist/fonts/type1/public/amsfonts/cm/cmmi10.pfb></usr/share/texlive/texmf-dist
-/fonts/type1/public/amsfonts/cm/cmmi5.pfb></usr/share/texlive/texmf-dist/fonts/
-type1/public/amsfonts/cm/cmmi7.pfb></usr/share/texlive/texmf-dist/fonts/type1/p
-ublic/amsfonts/cm/cmr10.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/a
-msfonts/cm/cmr5.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/
-cm/cmr7.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmr8.
-pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy10.pfb></
-usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy5.pfb></usr/sha
-re/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy6.pfb></usr/share/texl
-ive/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy7.pfb></usr/share/texlive/tex
-mf-dist/fonts/type1/public/amsfonts/cm/cmsy8.pfb></usr/share/texlive/texmf-dist
-/fonts/type1/public/amsfonts/symbols/msbm10.pfb></usr/share/texlive/texmf-dist/
-fonts/type1/urw/times/utmb8a.pfb></usr/share/texlive/texmf-dist/fonts/type1/urw
-/times/utmbi8a.pfb></usr/share/texlive/texmf-dist/fonts/type1/urw/times/utmr8a.
-pfb></usr/share/texlive/texmf-dist/fonts/type1/urw/times/utmri8a.pfb>
-Output written on main.pdf (5 pages, 245690 bytes).
+r/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmex10.pfb></usr/shar
+e/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi10.pfb></usr/share/texl
+ive/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi5.pfb></usr/share/texlive/tex
+mf-dist/fonts/type1/public/amsfonts/cm/cmmi7.pfb></usr/share/texlive/texmf-dist
+/fonts/type1/public/amsfonts/cm/cmr10.pfb></usr/share/texlive/texmf-dist/fonts/
+type1/public/amsfonts/cm/cmr7.pfb></usr/share/texlive/texmf-dist/fonts/type1/pu
+blic/amsfonts/cm/cmsy10.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/a
+msfonts/cm/cmsy5.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts
+/cm/cmsy6.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cms
+y7.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy8.pfb>
+</usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/symbols/msbm10.pfb><
+/usr/share/texlive/texmf-dist/fonts/type1/urw/times/utmb8a.pfb></usr/share/texl
+ive/texmf-dist/fonts/type1/urw/times/utmbi8a.pfb></usr/share/texlive/texmf-dist
+/fonts/type1/urw/times/utmr8a.pfb></usr/share/texlive/texmf-dist/fonts/type1/ur
+w/times/utmri8a.pfb>
+Output written on main.pdf (5 pages, 373988 bytes).
 PDF statistics:
- 259 PDF objects out of 1000 (max. 8388607)
- 206 compressed objects within 3 object streams
+ 242 PDF objects out of 1000 (max. 8388607)
+ 194 compressed objects within 2 object streams
  45 named destinations out of 1000 (max. 500000)
- 181 words of extra memory for PDF output out of 10000 (max. 10000000)
+ 191 words of extra memory for PDF output out of 10000 (max. 10000000)
 
