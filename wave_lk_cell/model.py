@@ -178,19 +178,19 @@ class WaveLKCellModel(nn.Module):
         metrics: NestedMetricCollection,
     ) -> None:
         batch_size = outputs["nuclei_binary_map"].shape[0]
-        np_pred = outputs["nuclei_binary_map"].float().softmax(dim=1)[:, 1]
+        np_binary = outputs["nuclei_binary_map"].argmax(dim=1)
         hv_pred = outputs["hv_map"].float()
         type_pred = outputs["nuclei_type_map"].float()
 
         for i in range(batch_size):
             tissue_key = str(targets[i]["tissue"])
-            np_binary = (np_pred[i] > 0.5).cpu().numpy()
+            np_bin = np_binary[i].cpu().numpy().astype(np.float32)
             hv_np = hv_pred[i].detach().cpu().numpy()
             gt_masks = targets[i]["masks"].cpu()
             gt_labels = targets[i]["labels"].cpu()
 
             pred_inst, pred_type = post_process_batch(
-                np_binary[None], hv_np[None], type_pred[i:i+1].cpu().numpy(), self.num_classes,
+                np_bin[None], hv_np[None], type_pred[i:i+1].cpu().numpy(), self.num_classes,
             )[0]
 
             pred_mask_list = []
@@ -209,7 +209,7 @@ class WaveLKCellModel(nn.Module):
                 pred_masks = torch.stack(pred_mask_list)
                 pred_labels = torch.tensor(pred_label_list, dtype=torch.long)
             else:
-                H, W = np_binary.shape
+                H, W = np_bin.shape
                 pred_masks = torch.zeros(0, H, W)
                 pred_labels = torch.zeros(0, dtype=torch.long)
 
@@ -222,18 +222,18 @@ class WaveLKCellModel(nn.Module):
         metrics: NestedMetricCollection,
     ) -> None:
         batch_size = outputs["nuclei_binary_map"].shape[0]
-        np_pred = outputs["nuclei_binary_map"].float().softmax(dim=1)[:, 1]
+        np_binary = outputs["nuclei_binary_map"].argmax(dim=1)
         hv_pred = outputs["hv_map"].float()
 
         for i in range(batch_size):
             tissue_key = str(targets[i]["tissue"])
-            np_binary = (np_pred[i] > 0.5).cpu().numpy()
+            np_bin = np_binary[i].cpu().numpy().astype(np.float32)
             hv_np = hv_pred[i].detach().cpu().numpy()
             gt_masks = targets[i]["masks"].cpu()
 
-            H, W = np_binary.shape
+            H, W = np_bin.shape
             pred_inst, _ = post_process_batch(
-                np_binary[None], hv_np[None], np.zeros((1, self.num_classes, H, W)), self.num_classes,
+                np_bin[None], hv_np[None], np.zeros((1, self.num_classes, H, W)), self.num_classes,
             )[0]
 
             pred_mask_list = []
@@ -246,7 +246,7 @@ class WaveLKCellModel(nn.Module):
             if pred_mask_list:
                 pred_masks = torch.stack(pred_mask_list)
             else:
-                H, W = np_binary.shape
+                H, W = np_bin.shape
                 pred_masks = torch.zeros(0, H, W)
 
             metrics.update(tissue_key, pred_masks, gt_masks)
