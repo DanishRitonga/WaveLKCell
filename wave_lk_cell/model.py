@@ -143,8 +143,9 @@ class WaveLKCellModel(nn.Module):
             hv_np = hv_pred[i].detach().cpu().numpy()
             gt_masks = targets[i]["masks"].cpu()
 
+            H, W = np_binary.shape
             pred_inst, _ = post_process_batch(
-                np_binary[None], hv_np[None], np.zeros((1, 5, 256, 256)), self.num_classes,
+                np_binary[None], hv_np[None], np.zeros((1, self.num_classes, H, W)), self.num_classes,
             )[0]
 
             pred_mask_list = []

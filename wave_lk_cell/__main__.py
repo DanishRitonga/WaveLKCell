@@ -86,7 +86,7 @@ def main() -> None:
 
     if do_fit:
         data.setup("fit")
-    elif do_test:
+    if do_test and data.test_loader is None:
         data.setup("test")
 
     model_cfg = cfg["model"]

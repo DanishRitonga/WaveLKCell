@@ -139,8 +139,7 @@ class WaveLKCellTrainer:
         metrics = self.test_binary_metrics if is_test else self.val_binary_metrics
         mc_metrics = self.test_multiclass_metrics if is_test else self.val_multiclass_metrics
         metrics.reset()
-        if is_test:
-            mc_metrics.reset()
+        mc_metrics.reset()
 
         self.model.eval()
         total_loss = 0.0
@@ -152,15 +151,16 @@ class WaveLKCellTrainer:
 
             with torch.amp.autocast("cuda", enabled=self.amp):
                 outputs = self.model(images)
-                losses = self.model.compute_loss(outputs, targets, self.loss_weights)
+            losses = self.model.compute_loss(
+                {k: v.float() for k, v in outputs.items()}, targets, self.loss_weights,
+            )
 
             total_loss += losses["loss"].item()
             n_batches += 1
 
+            self.model.update_binary_metrics(outputs, targets, metrics)
             if is_test:
                 self.model.update_metrics(outputs, targets, mc_metrics)
-            else:
-                self.model.update_binary_metrics(outputs, targets, metrics)
 
         metrics_dict: dict[str, float] = {}
         binary_results = metrics.compute()
@@ -178,7 +178,7 @@ class WaveLKCellTrainer:
                 for k, v in vals.items():
                     key = f"{prefix}_mc/{tissue}_{k}"
                     metrics_dict[key] = round(float(v), 6)
-            avg_mpq = float(mc_results[next(iter(mc_results))]["mPQ"]) if mc_results else 0.0
+            avg_mpq = float(torch.stack([v["mPQ"] for v in mc_results.values()]).mean()) if mc_results else 0.0
             metrics_dict[f"{prefix}/mPQ"] = round(avg_mpq, 6)
 
         metrics_dict[f"{prefix}/loss"] = round(total_loss / max(n_batches, 1), 6)
@@ -188,7 +188,7 @@ class WaveLKCellTrainer:
     def _save_checkpoint(self, epoch: int, is_best: bool = False) -> None:
         ckpt = {
             "epoch": epoch,
-            "model_state_dict": {k: v.half() for k, v in self.model.state_dict().items()},
+            "model_state_dict": {k: v.cpu().float() for k, v in self.model.state_dict().items()},
             "optimizer_state_dict": self.optimizer.state_dict(),
             "scaler_state_dict": self.scaler.state_dict(),
             "scheduler_state_dict": self.scheduler.state_dict(),
@@ -231,7 +231,9 @@ class WaveLKCellTrainer:
                 try:
                     with torch.amp.autocast("cuda", enabled=self.amp):
                         outputs = self.model(images)
-                        losses = self.model.compute_loss(outputs, targets, self.loss_weights)
+                        losses = self.model.compute_loss(
+                            {k: v.float() for k, v in outputs.items()}, targets, self.loss_weights,
+                        )
 
                     loss_val = losses["loss"]
                     if not torch.isfinite(loss_val):
