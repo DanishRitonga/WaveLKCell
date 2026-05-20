@@ -96,6 +96,9 @@ class WaveLKCellTrainer:
 
         self.results: list[dict[str, Any]] = []
 
+        # Snapshot of model/optimizer state for NaN recovery
+        self._snapshot: dict[str, torch.Tensor] | None = None
+
     def _freeze_backbone(self) -> None:
         for p in self.model.encoder.parameters():
             p.requires_grad = False
@@ -125,7 +128,36 @@ class WaveLKCellTrainer:
         torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=self.clip_val)
         self.scaler.step(self.optimizer)
         self.scaler.update()
-        self.optimizer.zero_grad()
+        self.optimizer.zero_grad(set_to_none=True)
+
+        # Check for NaN weights after step — revert if corrupted
+        if self._has_nan_weights():
+            print(f"  NaN weights detected after optimizer step, reverting to last snapshot")
+            self._restore_snapshot()
+
+    def _save_snapshot(self) -> None:
+        """Snapshot model params + optimizer state for NaN recovery."""
+        self._snapshot = {
+            name: param.data.clone()
+            for name, param in self.model.named_parameters()
+        }
+        self._opt_snapshot = self.optimizer.state_dict()
+
+    def _restore_snapshot(self) -> None:
+        """Revert model params + optimizer state to last snapshot."""
+        if self._snapshot is None:
+            return
+        for name, param in self.model.named_parameters():
+            if name in self._snapshot:
+                param.data.copy_(self._snapshot[name])
+        self.optimizer.load_state_dict(self._opt_snapshot)
+        self.scaler = torch.amp.GradScaler("cuda", enabled=self.amp)
+
+    def _has_nan_weights(self) -> bool:
+        for param in self.model.parameters():
+            if not torch.isfinite(param.data).all():
+                return True
+        return False
 
     def _apply_warmup(self, ni: int, nw: int, base_lr: float) -> None:
         if nw == 0 or ni > nw:
@@ -218,6 +250,9 @@ class WaveLKCellTrainer:
                 self._unfreeze_backbone()
                 print(f"  [epoch {epoch}] Backbone unfrozen")
 
+            # Snapshot healthy state before training epoch for NaN recovery
+            self._save_snapshot()
+
             epoch_losses = {
                 "loss": 0.0,
                 "np_bce_loss": 0.0, "np_dice_loss": 0.0,
@@ -244,14 +279,14 @@ class WaveLKCellTrainer:
                     loss_val = losses["loss"]
                     if not torch.isfinite(loss_val):
                         print(f"  [epoch {epoch+1} batch {i}] NaN/Inf loss detected, skipping batch")
-                        self.optimizer.zero_grad()
+                        self.optimizer.zero_grad(set_to_none=True)
                         continue
 
                     self.scaler.scale(loss_val).backward()
                 except RuntimeError as e:
                     if "out of memory" in str(e):
                         print(f"  [epoch {epoch+1} batch {i}] OOM, skipping batch")
-                        self.optimizer.zero_grad()
+                        self.optimizer.zero_grad(set_to_none=True)
                         torch.cuda.empty_cache()
                         continue
                     raise
