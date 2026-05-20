@@ -216,7 +216,7 @@ class WaveLKCellTrainer:
     def _save_checkpoint(self, epoch: int, is_best: bool = False) -> None:
         ckpt = {
             "epoch": epoch,
-            "model_state_dict": {k: v.cpu().float() for k, v in self.model.state_dict().items()},
+            "model_state_dict": {k: v.cpu().float().contiguous().clone() for k, v in self.model.state_dict().items()},
             "optimizer_state_dict": self.optimizer.state_dict(),
             "scaler_state_dict": self.scaler.state_dict(),
             "scheduler_state_dict": self.scheduler.state_dict(),
@@ -339,7 +339,7 @@ class WaveLKCellTrainer:
     def test(self, ckpt_path: str | None = None) -> dict[str, float]:
         if ckpt_path:
             ckpt = torch.load(ckpt_path, map_location=self.device, weights_only=False)
-            state = {k: v.float() for k, v in ckpt["model_state_dict"].items()}
+            state = {k: v.float().clone() for k, v in ckpt["model_state_dict"].items()}
             self.model.load_state_dict(state)
             print(f"  Loaded checkpoint from {ckpt_path}")
 

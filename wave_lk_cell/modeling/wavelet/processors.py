@@ -20,8 +20,8 @@ class AdaptivePowerGaborConv(nn.Module):
             torch.arange(-half, half + 1, dtype=torch.float32),
             indexing="ij",
         )
-        self.register_buffer("grid_y", y)
-        self.register_buffer("grid_x", x)
+        self.register_buffer("grid_y", y.contiguous())
+        self.register_buffer("grid_x", x.contiguous())
 
         self.wavelength = nn.Parameter(torch.ones(out_channels))
         self.theta = nn.Parameter(torch.zeros(out_channels))
