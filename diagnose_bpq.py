@@ -11,7 +11,7 @@ import torch
 from datasets import load_dataset
 from torch.utils.data import DataLoader
 
-from wave_lk_cell.data.datasets import TestingDataset
+from wave_lk_cell.data.datasets import TrainingDataset
 from wave_lk_cell.data.utils import collate_fn
 from wave_lk_cell.metrics.lkcell_metrics import get_fast_pq
 from wave_lk_cell.model import WaveLKCellModel
@@ -38,9 +38,10 @@ def main() -> None:
     ds = load_dataset("RationAI/PanNuke")
     eval_data = ds["fold2"]
 
-    from albumentations import Normalize
-    eval_tf = Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])
-    dataset = TestingDataset(eval_data, eval_tf, num_classes=5)
+    import albumentations as A
+    eval_tf = [A.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])]
+    from wave_lk_cell.data.datasets import TrainingDataset
+    dataset = TrainingDataset(eval_data, eval_tf, num_classes=5)
     loader = DataLoader(dataset, batch_size=1, num_workers=0, collate_fn=collate_fn)
 
     total_pred_inst = 0
