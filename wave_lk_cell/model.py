@@ -132,8 +132,9 @@ class WaveLKCellModel(nn.Module):
         w_type = w.get("type_weight", 1.0)
         w_tissue = w.get("tissue_weight", 1.0)
 
-        # Replace NaN/Inf terms with a zero that carries gradient flow
-        # but does NOT propagate NaN backwards to model parameters
+        # Replace NaN/Inf terms — only sum finite ones into the total
+        # so backward never sees NaN. Use a dummy finite term if ALL are NaN
+        # (to preserve grad_fn), but skip the backward entirely in that case.
         terms = {
             "np_bce_loss": w_np * np_bce_loss,
             "np_dice_loss": w_np * np_dice_loss,
@@ -144,14 +145,18 @@ class WaveLKCellModel(nn.Module):
             "tissue_loss": w_tissue * tissue_loss,
         }
         clean = []
+        nan_count = 0
         for name, val in terms.items():
             if torch.isfinite(val):
                 clean.append(val)
             else:
-                # Detach NaN term, replace with zero that's still part of the graph
-                # via a (finite) term so backward works without NaN grads
-                pass
-        total = sum(clean) if clean else 0 * terms["np_bce_loss"]
+                nan_count += 1
+        if clean:
+            total = sum(clean)
+        else:
+            # Every term is NaN — return zero loss (no grad_fn).
+            # Trainer must check requires_grad before calling backward.
+            total = torch.tensor(0.0, device=device)
 
         # Return raw (unweighted) values, replacing NaN with 0 for clean logging
         raw_vals = {

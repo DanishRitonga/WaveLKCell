@@ -95,6 +95,8 @@ class WaveLKCellTrainer:
         )
 
         self.results: list[dict[str, Any]] = []
+        self._snapshot: dict[str, torch.Tensor] | None = None
+        self._opt_snapshot: dict | None = None
 
     def _freeze_backbone(self) -> None:
         for p in self.model.encoder.parameters():
@@ -126,6 +128,26 @@ class WaveLKCellTrainer:
         self.scaler.step(self.optimizer)
         self.scaler.update()
         self.optimizer.zero_grad(set_to_none=True)
+
+        if self._has_nan_weights():
+            print(f"  NaN weights after step, reverting to epoch snapshot")
+            self._restore_snapshot()
+
+    def _save_snapshot(self) -> None:
+        self._snapshot = {
+            name: param.data.clone()
+            for name, param in self.model.named_parameters()
+        }
+        self._opt_snapshot = self.optimizer.state_dict()
+
+    def _restore_snapshot(self) -> None:
+        if self._snapshot is None:
+            return
+        for name, param in self.model.named_parameters():
+            if name in self._snapshot:
+                param.data.copy_(self._snapshot[name])
+        self.optimizer.load_state_dict(self._opt_snapshot)
+        self.scaler = torch.amp.GradScaler("cuda", enabled=self.amp)
 
     def _has_nan_weights(self) -> bool:
         for param in self.model.parameters():
@@ -224,6 +246,8 @@ class WaveLKCellTrainer:
                 self._unfreeze_backbone()
                 print(f"  [epoch {epoch}] Backbone unfrozen")
 
+            self._save_snapshot()
+
             epoch_losses = {
                 "loss": 0.0,
                 "np_bce_loss": 0.0, "np_dice_loss": 0.0,
@@ -247,7 +271,9 @@ class WaveLKCellTrainer:
                             {k: v.float() for k, v in outputs.items()}, targets, self.loss_weights,
                         )
 
-                    self.scaler.scale(losses["loss"]).backward()
+                    loss_val = losses["loss"]
+                    if loss_val.requires_grad:
+                        self.scaler.scale(loss_val).backward()
                 except RuntimeError as e:
                     if "out of memory" in str(e):
                         print(f"  [epoch {epoch+1} batch {i}] OOM, skipping batch")
