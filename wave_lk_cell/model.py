@@ -132,23 +132,34 @@ class WaveLKCellModel(nn.Module):
         w_type = w.get("type_weight", 1.0)
         w_tissue = w.get("tissue_weight", 1.0)
 
-        total = (
-            w_np * (np_bce_loss + np_dice_loss)
-            + w_hv * (hv_mse_loss + hv_msge_loss)
-            + w_type * (type_bce_loss + type_dice_loss)
-            + w_tissue * tissue_loss
-        )
+        # Zero out NaN/Inf terms instead of poisoning the whole batch
+        terms = {
+            "np_bce_loss": w_np * np_bce_loss,
+            "np_dice_loss": w_np * np_dice_loss,
+            "hv_mse_loss": w_hv * hv_mse_loss,
+            "hv_msge_loss": w_hv * hv_msge_loss,
+            "type_bce_loss": w_type * type_bce_loss,
+            "type_dice_loss": w_type * type_dice_loss,
+            "tissue_loss": w_tissue * tissue_loss,
+        }
+        for name, val in terms.items():
+            if not torch.isfinite(val):
+                terms[name] = torch.zeros_like(val)
 
-        return {
-            "loss": total,
-            "np_bce_loss": np_bce_loss,
-            "np_dice_loss": np_dice_loss,
-            "hv_mse_loss": hv_mse_loss,
-            "hv_msge_loss": hv_msge_loss,
-            "type_bce_loss": type_bce_loss,
-            "type_dice_loss": type_dice_loss,
+        total = sum(terms.values())
+
+        # Return raw (unweighted) values, zeroing NaN for clean logging
+        raw = {
+            "np_bce_loss": np_bce_loss, "np_dice_loss": np_dice_loss,
+            "hv_mse_loss": hv_mse_loss, "hv_msge_loss": hv_msge_loss,
+            "type_bce_loss": type_bce_loss, "type_dice_loss": type_dice_loss,
             "tissue_loss": tissue_loss,
         }
+        for name, val in raw.items():
+            if not torch.isfinite(val):
+                raw[name] = torch.zeros_like(val)
+
+        return {"loss": total, **raw}
 
     def update_metrics(
         self,
