@@ -30,7 +30,7 @@ def main() -> None:
     model = WaveLKCellModel(num_classes=5, num_tissue_classes=19, pretrained_encoder=False)
 
     ckpt = torch.load(args.checkpoint, map_location=device, weights_only=False)
-    state = {k: v.float() for k, v in ckpt["model_state_dict"].items()}
+    state = {k: v.float().clone() for k, v in ckpt["model_state_dict"].items()}
     model.load_state_dict(state)
     model = model.to(device).eval()
     print(f"Loaded checkpoint from epoch {ckpt['epoch']}")
