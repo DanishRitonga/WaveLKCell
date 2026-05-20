@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import copy
 from pathlib import Path
 from typing import Any
 
@@ -90,8 +89,10 @@ class WaveLKCellTrainer:
         self.val_multiclass_metrics = NestedMetricCollection(
             PanopticQuality, num_classes=num_classes,
         )
-        self.test_binary_metrics = copy.deepcopy(self.val_binary_metrics)
-        self.test_multiclass_metrics = copy.deepcopy(self.val_multiclass_metrics)
+        self.test_binary_metrics = NestedMetricCollection(BinaryPanopticQuality)
+        self.test_multiclass_metrics = NestedMetricCollection(
+            PanopticQuality, num_classes=num_classes,
+        )
 
         self.results: list[dict[str, Any]] = []
 
