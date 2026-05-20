@@ -1,7 +1,14 @@
+"""Multi-class Panoptic Quality — matches LKCell's per-class PQ exactly.
+
+Uses get_fast_pq with match_iou=0.5 for each class independently,
+then averages across classes — same as LKCell's calculate_step_metric_validation.
+"""
 from __future__ import annotations
 
 import torch
 from torchmetrics import Metric
+
+from wave_lk_cell.metrics.lkcell_metrics import get_fast_pq, remap_label
 
 
 class PanopticQuality(Metric):
@@ -9,9 +16,10 @@ class PanopticQuality(Metric):
     higher_is_better = True
     full_state_update = False
 
-    def __init__(self, num_classes: int, **kwargs) -> None:
+    def __init__(self, num_classes: int, match_iou: float = 0.5, **kwargs) -> None:
         super().__init__(**kwargs)
         self.num_classes = num_classes
+        self.match_iou = match_iou
         self.add_state("pq_sum", default=torch.zeros(num_classes), dist_reduce_fx="sum")
         self.add_state("dq_sum", default=torch.zeros(num_classes), dist_reduce_fx="sum")
         self.add_state("sq_sum", default=torch.zeros(num_classes), dist_reduce_fx="sum")
@@ -24,6 +32,14 @@ class PanopticQuality(Metric):
         pred_labels: torch.Tensor,
         gt_labels: torch.Tensor,
     ) -> None:
+        """Update with instance masks + class labels.
+
+        Args:
+            pred_masks: (N, H, W) binary prediction instance masks.
+            gt_masks: (M, H, W) binary ground-truth instance masks.
+            pred_labels: (N,) class label per predicted instance.
+            gt_labels: (M,) class label per ground-truth instance.
+        """
         if pred_masks.dim() == 3:
             pred_masks = pred_masks.unsqueeze(0)
             pred_labels = pred_labels.unsqueeze(0)
@@ -31,107 +47,51 @@ class PanopticQuality(Metric):
             gt_masks = gt_masks.unsqueeze(0)
             gt_labels = gt_labels.unsqueeze(0)
 
-        B, N_pred, H, W = pred_masks.shape
-        N_gt = gt_masks.shape[1]
+        B = pred_masks.shape[0]
 
         for b in range(B):
             for cls in range(self.num_classes):
-                gt_cls_mask = gt_labels[b] == cls
-                pred_cls_mask = pred_labels[b] == cls
+                # Build per-class instance maps
+                gt_cls_idx = (gt_labels[b] == cls).nonzero(as_tuple=True)[0]
+                pred_cls_idx = (pred_labels[b] == cls).nonzero(as_tuple=True)[0]
 
-                n_gt_cls = gt_cls_mask.sum().item()
-                n_pred_cls = pred_cls_mask.sum().item()
+                n_gt_cls = gt_cls_idx.numel()
+                n_pred_cls = pred_cls_idx.numel()
 
                 if n_gt_cls == 0 and n_pred_cls == 0:
-                    continue
+                    continue  # skip — no instances of this class in either
 
-                gt_cls_masks = gt_masks[b][gt_cls_mask]
-                pred_cls_masks = pred_masks[b][pred_cls_mask]
+                # Build instance maps for this class
+                H, W = pred_masks.shape[-2], pred_masks.shape[-1]
 
-                if gt_cls_masks.numel() == 0:
-                    self.pq_sum[cls] += 0.0
-                    self.count[cls] += 1
-                    continue
-                if pred_cls_masks.numel() == 0:
-                    self.pq_sum[cls] += 0.0
-                    self.count[cls] += 1
-                    continue
+                gt_cls_map = torch.zeros(H, W, dtype=torch.int32)
+                for rank, idx in enumerate(gt_cls_idx):
+                    gt_cls_map[gt_masks[b, idx].bool()] = rank + 1
 
-                intersection = (pred_cls_masks.any(dim=0).bool() & gt_cls_masks.any(dim=0).bool()).sum().float()
-                union = (pred_cls_masks.any(dim=0).bool() | gt_cls_masks.any(dim=0).bool()).sum().float()
-                dice = 2 * intersection / (union + 1e-8)
+                pred_cls_map = torch.zeros(H, W, dtype=torch.int32)
+                for rank, idx in enumerate(pred_cls_idx):
+                    pred_cls_map[pred_masks[b, idx].bool()] = rank + 1
 
-                tp, fp, fn = self._match_by_class(pred_cls_masks, gt_cls_masks)
-                dq = tp / (tp + 0.5 * fp + 0.5 * fn + 1e-8)
-                sq = self._sq_by_class(pred_cls_masks, gt_cls_masks, tp)
+                gt_cls_map = remap_label(gt_cls_map)
+                pred_cls_map = remap_label(pred_cls_map)
 
-                self.pq_sum[cls] += dq * sq
+                [dq, sq, pq], _ = get_fast_pq(
+                    gt_cls_map, pred_cls_map, match_iou=self.match_iou,
+                )
+
+                self.pq_sum[cls] += pq
                 self.dq_sum[cls] += dq
                 self.sq_sum[cls] += sq
                 self.count[cls] += 1
-
-    def _match_by_class(
-        self, pred_masks: torch.Tensor, gt_masks: torch.Tensor
-    ) -> tuple[float, float, float]:
-        N_pred = pred_masks.shape[0]
-        N_gt = gt_masks.shape[0]
-        tp = fp = fn = 0.0
-
-        for n in range(N_gt):
-            best_iou = 0.0
-            best_pred = -1
-            for p in range(N_pred):
-                inter = (pred_masks[p].bool() & gt_masks[n].bool()).sum().float()
-                union = (pred_masks[p].bool() | gt_masks[n].bool()).sum().float()
-                iou = inter / (union + 1e-8)
-                if iou > best_iou:
-                    best_iou = iou
-                    best_pred = p
-
-            if best_iou > 0.5 and best_pred >= 0:
-                tp += 1
-            else:
-                fn += 1
-
-        fp = max(0, N_pred - int(tp))
-        return tp, fp, fn
-
-    def _sq_by_class(
-        self, pred_masks: torch.Tensor, gt_masks: torch.Tensor, tp: float
-    ) -> float:
-        if tp < 1:
-            return 0.0
-        iou_sum = 0.0
-        count = 0
-        N_pred = pred_masks.shape[0]
-        N_gt = gt_masks.shape[0]
-
-        matched_pred = set()
-        for n in range(N_gt):
-            best_iou = 0.0
-            best_pred = -1
-            for p in range(N_pred):
-                if p in matched_pred:
-                    continue
-                inter = (pred_masks[p].bool() & gt_masks[n].bool()).sum().float()
-                union = (pred_masks[p].bool() | gt_masks[n].bool()).sum().float()
-                iou = inter / (union + 1e-8)
-                if iou > best_iou:
-                    best_iou = iou
-                    best_pred = p
-            if best_iou > 0.5 and best_pred >= 0:
-                iou_sum += best_iou.item()
-                count += 1
-                matched_pred.add(best_pred)
-
-        return iou_sum / (count + 1e-8)
 
     def compute(self) -> dict[str, torch.Tensor]:
         count = self.count
         valid = count > 0
         pq = torch.where(valid, self.pq_sum / (count + 1e-8), torch.zeros_like(self.pq_sum))
+        dq = torch.where(valid, self.dq_sum / (count + 1e-8), torch.zeros_like(self.dq_sum))
+        sq = torch.where(valid, self.sq_sum / (count + 1e-8), torch.zeros_like(self.sq_sum))
         return {
             "mPQ": pq.mean(),
-            "mDQ": torch.where(valid, self.dq_sum / (count + 1e-8), torch.zeros_like(self.dq_sum)).mean(),
-            "mSQ": torch.where(valid, self.sq_sum / (count + 1e-8), torch.zeros_like(self.sq_sum)).mean(),
+            "mDQ": dq.mean(),
+            "mSQ": sq.mean(),
         }
