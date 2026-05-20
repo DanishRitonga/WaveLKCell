@@ -132,7 +132,8 @@ class WaveLKCellModel(nn.Module):
         w_type = w.get("type_weight", 1.0)
         w_tissue = w.get("tissue_weight", 1.0)
 
-        # Zero out NaN/Inf terms instead of poisoning the whole batch
+        # Replace NaN/Inf terms with a zero that carries gradient flow
+        # but does NOT propagate NaN backwards to model parameters
         terms = {
             "np_bce_loss": w_np * np_bce_loss,
             "np_dice_loss": w_np * np_dice_loss,
@@ -142,24 +143,28 @@ class WaveLKCellModel(nn.Module):
             "type_dice_loss": w_type * type_dice_loss,
             "tissue_loss": w_tissue * tissue_loss,
         }
+        clean = []
         for name, val in terms.items():
-            if not torch.isfinite(val):
-                terms[name] = torch.zeros_like(val)
+            if torch.isfinite(val):
+                clean.append(val)
+            else:
+                # Detach NaN term, replace with zero that's still part of the graph
+                # via a (finite) term so backward works without NaN grads
+                pass
+        total = sum(clean) if clean else 0 * terms["np_bce_loss"]
 
-        total = sum(terms.values())
-
-        # Return raw (unweighted) values, zeroing NaN for clean logging
-        raw = {
+        # Return raw (unweighted) values, replacing NaN with 0 for clean logging
+        raw_vals = {
             "np_bce_loss": np_bce_loss, "np_dice_loss": np_dice_loss,
             "hv_mse_loss": hv_mse_loss, "hv_msge_loss": hv_msge_loss,
             "type_bce_loss": type_bce_loss, "type_dice_loss": type_dice_loss,
             "tissue_loss": tissue_loss,
         }
-        for name, val in raw.items():
+        for name, val in raw_vals.items():
             if not torch.isfinite(val):
-                raw[name] = torch.zeros_like(val)
+                raw_vals[name] = torch.tensor(0.0, device=device)
 
-        return {"loss": total, **raw}
+        return {"loss": total, **raw_vals}
 
     def update_metrics(
         self,
