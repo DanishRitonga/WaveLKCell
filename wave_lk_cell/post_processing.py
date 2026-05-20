@@ -127,7 +127,7 @@ def post_process(
     ksize = 21 if magnification == 40 else 11
 
     # Stack into (H, W, 3): [nuclei_prob, h_dir, v_dir]
-    pred_stack = np.stack([binary_mask, hv_map[0], hv_map[1]], axis=-1)
+    pred_stack = np.stack([binary_mask, hv_map[..., 0], hv_map[..., 1]], axis=-1)
     instance_map = proc_np_hv(pred_stack, object_size=object_size, ksize=ksize)
     type_instance_map = majority_voting_with_fallback(instance_map, type_map, num_classes)
     return instance_map, type_instance_map
