@@ -37,6 +37,12 @@ def main() -> None:
 
     ds = load_dataset("RationAI/PanNuke")
     eval_data = ds["fold2"]
+    from wave_lk_cell.data.utils.format_transform import format_transform
+    eval_data.set_transform(
+        format_transform,
+        columns=["image", "instances", "categories"],
+        output_all_columns=True,
+    )
 
     import albumentations as A
     eval_tf = [A.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])]
