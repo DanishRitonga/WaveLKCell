@@ -136,7 +136,11 @@ def main() -> None:
                 for j in range(gt_n):
                     gt_inst[gt_masks[j] > 0] = j + 1
 
-                tp, fp, fn = get_fast_pq(gt_inst, inst, match_iou=0.5) if (n_pred > 0 and gt_n > 0) else (0, 0, gt_n)
+                if n_pred > 0 and gt_n > 0:
+                    pq_list, _ = get_fast_pq(gt_inst, inst, match_iou=0.5)
+                    tp = sum(1 for p in pq_list if p > 0)
+                else:
+                    tp = 0
                 stats["total_pred"] += n_pred
                 stats["total_gt"] += gt_n
                 stats["total_tp"] += tp
