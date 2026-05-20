@@ -209,7 +209,7 @@ class WaveLKCellTrainer:
         base_lr = self.optimizer.param_groups[0]["lr"]
         last_opt_step = -1
 
-        print(f"{'Epoch':>5} {'loss':>10} {'np_loss':>10} {'hv_loss':>10} {'type_loss':>10} {'bPQ':>10} {'lr':>12}")
+        print(f"{'Epoch':>5} {'loss':>10} {'np':>10} {'hv':>10} {'type':>10} {'bPQ':>10} {'lr':>12}")
         print("-" * 85)
 
         for epoch in range(self.start_epoch, self.epochs):
@@ -218,7 +218,13 @@ class WaveLKCellTrainer:
                 self._unfreeze_backbone()
                 print(f"  [epoch {epoch}] Backbone unfrozen")
 
-            epoch_losses = {"loss": 0.0, "np_loss": 0.0, "hv_loss": 0.0, "type_loss": 0.0}
+            epoch_losses = {
+                "loss": 0.0,
+                "np_bce_loss": 0.0, "np_dice_loss": 0.0,
+                "hv_mse_loss": 0.0, "hv_msge_loss": 0.0,
+                "type_bce_loss": 0.0, "type_dice_loss": 0.0,
+                "tissue_loss": 0.0,
+            }
             n_batches = 0
 
             for i, (images, targets) in enumerate(self.train_loader):
@@ -284,9 +290,12 @@ class WaveLKCellTrainer:
                 **{k: round(v, 6) for k, v in val_scalars.items()},
             })
 
+            np_total = epoch_losses['np_bce_loss'] + epoch_losses['np_dice_loss']
+            hv_total = epoch_losses['hv_mse_loss'] + epoch_losses['hv_msge_loss']
+            type_total = epoch_losses['type_bce_loss'] + epoch_losses['type_dice_loss']
             print(
-                f"{epoch+1:>5} {epoch_losses['loss']:>10.4f} {epoch_losses['np_loss']:>10.4f} "
-                f"{epoch_losses['hv_loss']:>10.4f} {epoch_losses['type_loss']:>10.4f} "
+                f"{epoch+1:>5} {epoch_losses['loss']:>10.4f} {np_total:>10.4f} "
+                f"{hv_total:>10.4f} {type_total:>10.4f} "
                 f"{fitness:>10.4f} {self.optimizer.param_groups[0]['lr']:>12.6f}"
             )
 

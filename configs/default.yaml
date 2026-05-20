@@ -36,6 +36,7 @@ loss:
   np_weight: 1.0
   hv_weight: 1.0
   type_weight: 1.0
+  tissue_weight: 1.0
 
 experiment_name: wavellkcell
 save_dir: runs/wavellkcell

@@ -39,7 +39,7 @@
 
 \begin{abstract}
 % TODO: Fill in final numbers after training
-Accurate cell nuclei instance segmentation in hematoxylin and eosin (H\&E) stained tissue images is essential for computational pathology. Recent large-kernel convolutional methods such as LKCell achieve state-of-the-art performance with efficient computation by expanding the receptive field through large convolution kernels. However, large kernels may blur fine high-frequency details critical for delineating nuclear boundaries and capturing chromatin texture. In this paper, we propose WaveLKCell, which integrates a multi-level wavelet enhancement module into the large-kernel segmentation framework. Our approach applies two-level Haar discrete wavelet transform (DWT) to the deepest encoder features, decomposing them into frequency sub-bands that are processed by specialized modules: Adaptive Power Gabor Convolution (APGConv) for high-frequency boundary details, self-attention for mid-high frequencies, channel attention for mid-low frequencies, and depthwise convolution for low frequencies. The enhanced features are reconstructed via inverse DWT with a residual connection and fed to a large-kernel decoder for nuclei prediction. Experiments on the PanNuke benchmark demonstrate that WaveLKCell achieves competitive performance, achieving an mPQ of \textbf{[X.XXXX]} and a bPQ of \textbf{[X.XXXX]}, validating the benefit of wavelet-enhanced frequency decomposition for large-kernel nuclei segmentation.
+Accurate cell nuclei instance segmentation in hematoxylin and eosin (H\&E) stained tissue images is essential for computational pathology. Recent large-kernel convolutional methods such as LKCell achieve state-of-the-art performance with efficient computation by expanding the receptive field through large convolution kernels. However, large kernels may blur fine high-frequency details critical for delineating nuclear boundaries and capturing chromatin texture. In this paper, we propose WaveLKCell, an architecture that integrates multi-level wavelet enhancement into the large-kernel segmentation framework to address this frequency limitation. Building upon the frequency-specific processing modules introduced in WaveConvX---including Adaptive Power Gabor Convolution (APGConv) for high-frequency details, self-attention for mid-high frequencies, channel attention for mid-low frequencies, and depthwise convolution for low frequencies---we design a U-shaped encoder-decoder that positions wavelet enhancement at the bottleneck between the large-kernel encoder and decoder. This architectural choice enables complementary frequency processing: large kernels capture broad spatial context while wavelet decomposition recovers high-frequency details. Experiments on the PanNuke benchmark demonstrate that WaveLKCell achieves competitive performance, achieving an mPQ of \textbf{[X.XXXX]} and a bPQ of \textbf{[X.XXXX]}, validating the benefit of integrating wavelet-based frequency decomposition into large-kernel nuclei segmentation.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -59,11 +59,11 @@ LKCell~\cite{lkcell} addresses this trade-off by introducing large convolution k
 
 To address this limitation, we draw inspiration from wavelet-based image analysis, which provides a principled framework for decomposing signals into frequency sub-bands. WaveConvX~\cite{waveconvx} recently demonstrated that multi-level wavelet enhancement with frequency-specific processing significantly improves histopathology image classification. This motivates the question: \emph{can wavelet-based frequency decomposition complement large-kernel convolutions for nuclei segmentation?}
 
-In this paper, we propose WaveLKCell, a method that integrates multi-level wavelet enhancement into the large-kernel nuclei segmentation framework. Our key insight is that wavelet decomposition and large-kernel convolutions operate on complementary frequency domains---large kernels capture broad spatial context in the low-frequency regime, while wavelet processing explicitly recovers and enhances the high-frequency details that large kernels tend to blur. Specifically, our contributions are:
+In this paper, we propose WaveLKCell, an architecture that integrates multi-level wavelet enhancement into the large-kernel nuclei segmentation framework. Our key insight is that wavelet decomposition and large-kernel convolutions operate on complementary frequency domains---large kernels capture broad spatial context in the low-frequency regime, while wavelet processing explicitly recovers and enhances the high-frequency details that large kernels tend to blur. Specifically, our contributions are:
 
 \begin{itemize}
-    \item We propose WaveLKCell, which integrates a two-level Haar wavelet enhancement module into a large-kernel encoder-decoder architecture for cell nuclei instance segmentation.
-    \item We employ frequency-specific processors---Adaptive Power Gabor Convolution (APGConv) for high-frequency nuclear boundaries, self-attention for mid-high frequencies, channel attention for mid-low frequencies, and depthwise convolution for low frequencies---to selectively enhance the features most relevant to nuclei segmentation.
+    \item We design WaveLKCell, a U-shaped encoder-decoder architecture that integrates the multi-level wavelet enhancement modules of WaveConvX~\cite{waveconvx} into the LKCell~\cite{lkcell} large-kernel segmentation framework, positioning wavelet frequency processing at the bottleneck to complement the large-kernel encoder's spatial feature extraction.
+    \item We demonstrate that the combination of large-kernel convolutions and wavelet frequency decomposition is complementary for nuclei segmentation, where large kernels capture broad morphological context while wavelet processing recovers fine nuclear boundary and chromatin texture details.
     \item Experiments on the PanNuke dataset demonstrate competitive performance against state-of-the-art methods including CellPose-SAM, StarDist, LSP-DETR, and LKCell.
 \end{itemize}
 
@@ -127,26 +127,26 @@ The decoder progressively upsamples features through three large-kernel decoder 
 
 \node[enc] (s3) at (0, -4.6) {Stage 3 {\tiny $\mathbf{F}_3$}\\[-2pt]{\scriptsize 384ch, $H/16$}};
 
-% ====== BOTTLENECK (bottom center) ======
-\node[wav, minimum width=2.4cm] (we) at (3.8, -4.6) {Wavelet\\[-2pt]Enhance\\[-2pt]{\tiny(\cref{fig:wavelet})}};
+% ====== BOTTLENECK (bottom, same column as encoder) ======
+\node[wav, minimum width=2.4cm] (we) at (0, -5.8) {Wavelet\\[-2pt]Enhance\\[-2pt]{\tiny(\cref{fig:wavelet})}};
 
-\node[wav, minimum width=2.0cm] (ds) at (3.8, -3.2) {Downsample\\[-2pt]{\tiny $384{\to}768$ch}};
+\node[wav, minimum width=2.0cm] (ds) at (0, -7.0) {Downsample\\[-2pt]{\tiny $384{\to}768$ch}};
 
-% ====== DECODER (right, going UP) ======
-\node[dec] (d3) at (3.8, -1.8) {Dec Block 3 {\tiny $K{=}13$}\\[-2pt]{\scriptsize $\mathbf{F}_4 \to 1024$ch}};
+% ====== DECODER (right column, going UP from bottom) ======
+\node[dec] (d3) at (4.2, -5.8) {Dec Block 3 {\tiny $K{=}13$}\\[-2pt]{\scriptsize $\mathbf{F}_4 \to 1024$ch}};
 
-\node[dec] (d2) at (3.8, -0.3) {Dec Block 2 {\tiny $K{=}27$}\\[-2pt]{\scriptsize $512$ch}};
+\node[dec] (d2) at (4.2, -4.4) {Dec Block 2 {\tiny $K{=}27$}\\[-2pt]{\scriptsize $512$ch}};
 
-\node[dec] (d1) at (3.8, 1.2) {Dec Block 1 {\tiny $K{=}29$}\\[-2pt]{\scriptsize $256$ch}};
+\node[dec] (d1) at (4.2, -3.0) {Dec Block 1 {\tiny $K{=}29$}\\[-2pt]{\scriptsize $256$ch}};
 
-\node[dec] (up2) at (3.8, 2.4) {Up $+$ Skip\\[-2pt]{\scriptsize $128$ch, $H/2$}};
+\node[dec] (up2) at (4.2, -1.6) {Up $+$ Skip\\[-2pt]{\scriptsize $128$ch, $H/2$}};
 
-\node[dec] (up1) at (3.8, 3.5) {Up $+$ Skip\\[-2pt]{\scriptsize $64$ch, $1{\times}$}};
+\node[dec] (up1) at (4.2, -0.2) {Up $+$ Skip\\[-2pt]{\scriptsize $64$ch, $1{\times}$}};
 
 % ====== HEADS (top right) ======
-\node[head] (np) at (6.8, 3.5) {NP Head\\[-2pt]{\tiny 2ch}};
-\node[head] (hv) at (6.8, 2.6) {HV Head\\[-2pt]{\tiny 2ch}};
-\node[head] (nt) at (6.8, 1.7) {NT Head\\[-2pt]{\tiny $N_c$ ch}};
+\node[head] (np) at (7.2, -0.2) {NP Head\\[-2pt]{\tiny 2ch}};
+\node[head] (hv) at (7.2, -1.1) {HV Head\\[-2pt]{\tiny 2ch}};
+\node[head] (nt) at (7.2, -2.0) {NT Head\\[-2pt]{\tiny $N_c$ ch}};
 
 % ====== MAIN FLOW (encoder down) ======
 \draw[arr] (input) -- (stem);
@@ -154,12 +154,14 @@ The decoder progressively upsamples features through three large-kernel decoder 
 \draw[arr] (s1) -- (s2);
 \draw[arr] (s2) -- (s3);
 
-% Encoder -> Wavelet -> Downsample (bottom, going right then up)
+% Encoder -> Wavelet -> Downsample (continue down same column)
 \draw[arr] (s3) -- (we);
 \draw[arr] (we) -- (ds);
 
-% Downsample -> Decoder (going up)
-\draw[arr] (ds) -- (d3);
+% Bottom U-turn: downsample across to decoder
+\draw[arr] (ds.east) -| (d3.south);
+
+% Decoder (going up)
 \draw[arr] (d3) -- (d2);
 \draw[arr] (d2) -- (d1);
 \draw[arr] (d1) -- (up2);
@@ -176,12 +178,13 @@ The decoder progressively upsamples features through three large-kernel decoder 
 \draw[skip] (s1.east) -- node[above, font=\tiny, pos=0.3] {$\mathbf{F}_1$} (d1.west);
 
 % Input feature skips to extra upsampling
-\draw[skip, draw=gray!40] (stem.east) -- ++(0.6,0) |- node[near end, above, font=\tiny, text=gray!60] {input skip} (up2.west);
-\draw[skip, draw=gray!40] (input.east) -- ++(1.2,0) |- node[near end, above, font=\tiny, text=gray!60] {input skip} (up1.west);
+\draw[skip, draw=gray!40] (stem.east) -- ++(1.0,0) |- node[near end, above, font=\tiny, text=gray!60] {input skip} (up2.west);
+\draw[skip, draw=gray!40] (input.east) -- ++(2.0,0) |- node[near end, above, font=\tiny, text=gray!60] {input skip} (up1.west);
 
 % ====== ANNOTATIONS ======
-\node[font=\scriptsize\bfseries, text=blue!60!black, rotate=90, anchor=south] at (-1.5, -2.4) {Encoder};
-\node[font=\scriptsize\bfseries, text=green!50!black, rotate=-90, anchor=south] at (5.0, 0.5) {Decoder};
+\node[font=\scriptsize\bfseries, text=blue!60!black, rotate=90, anchor=south] at (-1.5, -3.0) {Encoder};
+\node[font=\scriptsize\bfseries, text=orange!60!black, rotate=90, anchor=south] at (-1.5, -6.4) {Bottleneck};
+\node[font=\scriptsize\bfseries, text=green!50!black, rotate=-90, anchor=south] at (5.6, -3.0) {Decoder};
 
 \end{tikzpicture}
 \caption{Overview of the WaveLKCell architecture in a U-shaped encoder-decoder layout. The large-kernel encoder (UniRepLKNet-S) extracts multi-scale features $\{\mathbf{F}_1, \mathbf{F}_2, \mathbf{F}_3\}$ at progressively lower resolutions. The Multi-Level Wavelet Enhancement module processes $\mathbf{F}_3$ through two-level Haar DWT/IDWT with frequency-specific processors (\cref{fig:wavelet}), producing the bottleneck $\mathbf{F}_4$. The decoder upsamples through three large-kernel blocks with skip connections (dashed blue), followed by two extra upsampling stages. Three heads predict NP, HV, and NT maps.}
@@ -284,11 +287,11 @@ The encoder stem downsamples the input by $4\times$ through two consecutive stri
 
 \subsection{Multi-Level Wavelet Enhancement}
 
-The core of our contribution is the Multi-Level Wavelet Enhancement module, applied to the deepest encoder features $\mathbf{F}_3 \in \mathbb{R}^{C \times H' \times W'}$ where $C=384$. This module decomposes features into frequency sub-bands, applies specialized processing to each band, and reconstructs enhanced features.
+Following WaveConvX~\cite{waveconvx}, we integrate a multi-level wavelet enhancement module at the bottleneck of our architecture, applied to the deepest encoder features $\mathbf{F}_3 \in \mathbb{R}^{C \times H' \times W'}$ where $C=384$. This module decomposes features into frequency sub-bands, applies the frequency-specific processors from~\cite{waveconvx}, and reconstructs enhanced features.
 
 \subsubsection{Two-Level Haar DWT}
 
-We apply two successive levels of the 2D Haar Discrete Wavelet Transform (DWT). The first level decomposes the input into four sub-bands:
+Following~\cite{waveconvx}, we apply two successive levels of the 2D Haar Discrete Wavelet Transform (DWT). The first level decomposes the input into four sub-bands:
 \begin{equation}
     \text{DWT}(\mathbf{F}_3) = \{\text{LL}_1, \text{LH}_1, \text{HL}_1, \text{HH}_1\}
 \end{equation}
@@ -300,14 +303,14 @@ The second level further decomposes the approximation coefficients:
 \end{equation}
 yielding sub-bands at resolution $H'/4 \times W'/4$.
 
-We implement the Haar DWT efficiently using strided convolutions with fixed wavelet kernels, grouped by channel to ensure independent transformation per channel with minimal computational overhead.
+We implement the Haar DWT efficiently using strided convolutions with fixed wavelet kernels, grouped by channel to ensure independent transformation per channel with minimal computational overhead, as described in~\cite{waveconvx}.
 
 \subsubsection{Frequency-Specific Processing}
 
-Each frequency sub-band is processed by a specialized module tailored to the characteristics of histopathological features at that frequency range:
+Following the design of~\cite{waveconvx}, each frequency sub-band is processed by a specialized module tailored to the characteristics of histopathological features at that frequency range:
 
-\textbf{High Frequency (HH$_1$) --- Adaptive Power Gabor Convolution (APGConv):}
-The HH$_1$ sub-band captures fine boundary details and nuclear texture. APGConv enhances these features using learnable Gabor filters with an adaptive power exponent. For each output channel $k$, we define a Gabor function on a $5{\times}5$ grid:
+\textbf{High Frequency (HH$_1$) --- Adaptive Power Gabor Convolution (APGConv)~\cite{waveconvx}:}
+The HH$_1$ sub-band captures fine boundary details and nuclear texture. APGConv~\cite{waveconvx} enhances these features using learnable Gabor filters with an adaptive power exponent. For each output channel $k$, we define a Gabor function on a $5{\times}5$ grid:
 \begin{equation}
     g_k(x,y) = \exp\!\left(-\frac{x_\theta^2 + \gamma_k^2 y_\theta^2}{2\sigma_k^2}\right) \cos\!\left(\frac{2\pi x_\theta}{\lambda_k}\right)
 \end{equation}
@@ -323,11 +326,11 @@ where $\alpha_k \in (0.1, 3.0)$ is a learnable parameter. When $\alpha_k < 1$, t
 \end{equation}
 followed by GELU activation and batch normalization.
 
-\textbf{Mid-High Frequency (LH$_1$, HL$_1$) --- Self-Attention:}
-The LH$_1$ and HL$_1$ sub-bands contain transitional edge structures. We apply multi-head self-attention ($4$ heads) to capture long-range spatial dependencies in these frequency components, followed by batch normalization and GELU activation.
+\textbf{Mid-High Frequency (LH$_1$, HL$_1$) --- Self-Attention~\cite{waveconvx}:}
+The LH$_1$ and HL$_1$ sub-bands contain transitional edge structures. Following~\cite{waveconvx}, we apply multi-head self-attention ($4$ heads) to capture long-range spatial dependencies in these frequency components, followed by batch normalization and GELU activation.
 
-\textbf{Mid-Low Frequency (LH$_2$, HL$_2$) --- Channel Attention:}
-The second-level horizontal and vertical detail bands are processed by squeeze-and-excitation style channel attention, which recalibrates feature responses across channels to emphasize informative frequency components.
+\textbf{Mid-Low Frequency (LH$_2$, HL$_2$) --- Channel Attention~\cite{waveconvx}:}
+The second-level horizontal and vertical detail bands are processed by squeeze-and-excitation style channel attention~\cite{waveconvx}, which recalibrates feature responses across channels to emphasize informative frequency components.
 
 \textbf{Low Frequency (HH$_2$) --- Depthwise Pointwise Convolution:}
 The second-level diagonal detail band is processed by a depthwise separable convolution for efficient local feature refinement.
@@ -464,7 +467,7 @@ LKCell baseline (no wavelet) & [X.XXXX] & [X.XXXX] \\
 \label{sec:conclusion}
 %% ============================================================
 
-We presented WaveLKCell, a method that integrates multi-level wavelet enhancement into a large-kernel nuclei instance segmentation framework. By decomposing the deepest encoder features into frequency sub-bands and applying specialized processing---APGConv for high-frequency boundary details, self-attention for mid-high frequencies, channel attention for mid-low frequencies---our approach complements the broad spatial context captured by large convolution kernels with explicit high-frequency recovery. Experiments on the PanNuke benchmark demonstrate competitive performance against state-of-the-art methods, validating the benefit of wavelet-based frequency decomposition for nuclei segmentation.
+We presented WaveLKCell, an architecture that integrates multi-level wavelet enhancement into a large-kernel nuclei instance segmentation framework. By positioning the frequency-specific processors of WaveConvX~\cite{waveconvx} at the bottleneck of the LKCell~\cite{lkcell} encoder-decoder, our architecture leverages the complementary strengths of large-kernel convolutions for broad spatial context and wavelet decomposition for high-frequency detail recovery. Experiments on the PanNuke benchmark demonstrate competitive performance against state-of-the-art methods, validating the benefit of combining these two approaches for nuclei segmentation.
 
 In future work, we plan to explore learnable wavelet bases, extend the wavelet enhancement to multiple decoder stages, and evaluate on additional pathology datasets including MoNuSeg and CoNIC.
 

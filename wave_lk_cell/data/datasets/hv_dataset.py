@@ -40,6 +40,10 @@ def _get_bounding_box(mask: np.ndarray) -> tuple[int, int, int, int]:
 
 
 def _compute_hv_map(masks: np.ndarray) -> np.ndarray:
+    """Compute HV map with LKCell channel order: [horizontal, vertical].
+
+    Channel 0 = horizontal (column) distances, Channel 1 = vertical (row) distances.
+    """
     H, W = masks.shape[-2:]
     h_map = np.zeros((H, W), dtype=np.float32)
     v_map = np.zeros((H, W), dtype=np.float32)
@@ -73,7 +77,7 @@ def _compute_hv_map(masks: np.ndarray) -> np.ndarray:
                 arr[arr > 0] /= pos.max()
         h_map[r0:r1, c0:c1][patch > 0] = yy[patch > 0]
         v_map[r0:r1, c0:c1][patch > 0] = xx[patch > 0]
-    return np.stack([h_map, v_map])
+    return np.stack([v_map, h_map])
 
 
 def _compute_targets(
@@ -153,6 +157,7 @@ class TrainingDataset(torch.utils.data.Dataset[tuple[Tensor, dict[str, Any]]]):
         targets["labels"] = torch.from_numpy(labels).long()
         targets["masks"] = torch.from_numpy(masks)
         targets["tissue"] = self.data.features["tissue"].names[sample["tissue"]]
+        targets["tissue_idx"] = sample["tissue"]
 
         return image, targets
 
@@ -208,5 +213,6 @@ class TestingDataset(torch.utils.data.Dataset[tuple[Tensor, dict[str, Any]]]):
         targets["labels"] = torch.from_numpy(labels).long()
         targets["masks"] = masks_tensor
         targets["tissue"] = self.data.features["tissue"].names[sample["tissue"]]
+        targets["tissue_idx"] = sample["tissue"]
 
         return transformed["image"], targets

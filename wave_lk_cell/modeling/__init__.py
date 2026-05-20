@@ -1,4 +1,4 @@
-from wave_lk_cell.modeling.lkcell_decoder import LKCellDecoder, LKCellDecoderBlock
+from wave_lk_cell.modeling.lkcell_decoder import RepLKDecoder, UpCat, TwoConv
 from wave_lk_cell.modeling.lkcell_encoder import (
     DilatedReparamBlock,
     DownsampleLayer,
@@ -12,8 +12,9 @@ __all__ = [
     "WaveLKCell",
     "SegmentationHead",
     "LKCellEncoder",
-    "LKCellDecoder",
-    "LKCellDecoderBlock",
+    "RepLKDecoder",
+    "UpCat",
+    "TwoConv",
     "UniRepLKNetBlock",
     "DilatedReparamBlock",
     "DownsampleLayer",

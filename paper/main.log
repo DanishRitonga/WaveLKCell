@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.28 (TeX Live 2025/Debian) (preloaded format=pdflatex 2026.5.15)  19 MAY 2026 16:45
+This is pdfTeX, Version 3.141592653-2.6-1.40.28 (TeX Live 2025/Debian) (preloaded format=pdflatex 2026.5.15)  20 MAY 2026 10:41
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -892,36 +892,37 @@ Underfull \hbox (badness 1817) in paragraph at lines 60--61
  []
 
 
-Underfull \hbox (badness 4699) in paragraph at lines 66--67
-[]\OT1/ptm/m/n/10 We em-ploy frequency-specific processors---Adaptive
- []
+LaTeX Warning: Citation `waveconvx' on page 1 undefined on input line 65.
+
+
+LaTeX Warning: Citation `lkcell' on page 1 undefined on input line 65.
 
 
 LaTeX Warning: Citation `watershed' on page 1 undefined on input line 77.
-
-
-LaTeX Warning: Citation `unet' on page 1 undefined on input line 79.
-
-
-LaTeX Warning: Citation `hoevernet' on page 1 undefined on input line 79.
-
-
-LaTeX Warning: Citation `cppnet' on page 1 undefined on input line 79.
-
-
-LaTeX Warning: Citation `stardist' on page 1 undefined on input line 79.
-
-
-LaTeX Warning: Citation `cellpose' on page 1 undefined on input line 79.
-
-
-LaTeX Warning: Citation `lsp_detr' on page 1 undefined on input line 79.
 
 [1{/var/lib/texmf/fonts/map/pdftex/updmap/pdftex.map}{/usr/share/texlive/texmf-
 dist/fonts/enc/dvips/base/8r.enc}
 
 
 ]
+
+LaTeX Warning: Citation `unet' on page 2 undefined on input line 79.
+
+
+LaTeX Warning: Citation `hoevernet' on page 2 undefined on input line 79.
+
+
+LaTeX Warning: Citation `cppnet' on page 2 undefined on input line 79.
+
+
+LaTeX Warning: Citation `stardist' on page 2 undefined on input line 79.
+
+
+LaTeX Warning: Citation `cellpose' on page 2 undefined on input line 79.
+
+
+LaTeX Warning: Citation `lsp_detr' on page 2 undefined on input line 79.
+
 
 LaTeX Warning: Citation `lkcell' on page 2 undefined on input line 81.
 
@@ -941,44 +942,84 @@ LaTeX Warning: Citation `waveconvx' on page 2 undefined on input line 85.
 LaTeX Warning: Citation `unireplknet' on page 2 undefined on input line 96.
 
 
-Overfull \hbox (38.71791pt too wide) in paragraph at lines 272--273
+Overfull \hbox (38.71791pt too wide) in paragraph at lines 275--276
  [][] 
  []
 
 
-LaTeX Warning: Citation `lkcell' on page 2 undefined on input line 279.
+LaTeX Warning: Citation `lkcell' on page 2 undefined on input line 282.
 
 
-LaTeX Warning: Citation `unireplknet' on page 2 undefined on input line 279.
-
-[2] [3]
-
-LaTeX Warning: Citation `lkcell' on page 4 undefined on input line 354.
+LaTeX Warning: Citation `unireplknet' on page 2 undefined on input line 282.
 
 
-LaTeX Warning: Citation `hoevernet' on page 4 undefined on input line 382.
+LaTeX Warning: Citation `waveconvx' on page 2 undefined on input line 290.
 
 
-LaTeX Warning: Citation `pannuke' on page 4 undefined on input line 391.
+LaTeX Warning: Citation `waveconvx' on page 2 undefined on input line 290.
 
 
-LaTeX Warning: Citation `stardist' on page 4 undefined on input line 414.
+LaTeX Warning: Citation `waveconvx' on page 2 undefined on input line 294.
 
 
-LaTeX Warning: Citation `cellpose' on page 4 undefined on input line 415.
+LaTeX Warning: Citation `waveconvx' on page 2 undefined on input line 306.
 
 
-LaTeX Warning: Citation `lsp_detr' on page 4 undefined on input line 416.
+LaTeX Warning: Citation `waveconvx' on page 2 undefined on input line 310.
 
 
-LaTeX Warning: Citation `lkcell' on page 4 undefined on input line 417.
+LaTeX Warning: Citation `waveconvx' on page 2 undefined on input line 312.
 
 
-Underfull \hbox (badness 3333) in paragraph at lines 424--425
+LaTeX Warning: Citation `waveconvx' on page 2 undefined on input line 313.
+
+[2]
+
+LaTeX Warning: Citation `waveconvx' on page 3 undefined on input line 329.
+
+
+LaTeX Warning: Citation `waveconvx' on page 3 undefined on input line 330.
+
+
+LaTeX Warning: Citation `waveconvx' on page 3 undefined on input line 332.
+
+
+LaTeX Warning: Citation `waveconvx' on page 3 undefined on input line 333.
+
+[3]
+
+LaTeX Warning: Citation `lkcell' on page 4 undefined on input line 357.
+
+
+LaTeX Warning: Citation `hoevernet' on page 4 undefined on input line 385.
+
+
+LaTeX Warning: Citation `pannuke' on page 4 undefined on input line 394.
+
+
+LaTeX Warning: Citation `stardist' on page 4 undefined on input line 417.
+
+
+LaTeX Warning: Citation `cellpose' on page 4 undefined on input line 418.
+
+
+LaTeX Warning: Citation `lsp_detr' on page 4 undefined on input line 419.
+
+
+LaTeX Warning: Citation `lkcell' on page 4 undefined on input line 420.
+
+
+Underfull \hbox (badness 3333) in paragraph at lines 427--428
 \OT1/ptm/m/n/10 ods. WaveLK-Cell demon-strates com-pet-i-tive per-for-mance
  []
 
 [4]
+
+LaTeX Warning: Citation `waveconvx' on page 5 undefined on input line 470.
+
+
+LaTeX Warning: Citation `lkcell' on page 5 undefined on input line 470.
+
 No file main.bbl.
 
 ** Conference Paper **
@@ -1006,13 +1047,13 @@ Package rerunfilecheck Info: File `main.out' has not changed.
 (rerunfilecheck)             Checksum: AC57804BC138294066A17CD14E0EF4FF;3316.
  ) 
 Here is how much of TeX's memory you used:
- 26342 strings out of 468921
- 508862 string characters out of 5457478
- 919433 words of memory out of 5000000
- 54710 multiletter control sequences out of 15000+600000
+ 26346 strings out of 468921
+ 508929 string characters out of 5457478
+ 919299 words of memory out of 5000000
+ 54714 multiletter control sequences out of 15000+600000
  672254 words of font info for 131 fonts, out of 8000000 for 9000
  309 hyphenation exceptions out of 8191
- 84i,14n,94p,1457b,867s stack positions out of 10000i,1000n,20000p,200000b,200000s
+ 84i,14n,94p,1578b,867s stack positions out of 10000i,1000n,20000p,200000b,200000s
 </usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmbx10.pfb></us
 r/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmbx5.pfb></usr/share
 /texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmbx7.pfb></usr/share/texliv
@@ -1032,7 +1073,7 @@ mf-dist/fonts/type1/public/amsfonts/cm/cmsy8.pfb></usr/share/texlive/texmf-dist
 fonts/type1/urw/times/utmb8a.pfb></usr/share/texlive/texmf-dist/fonts/type1/urw
 /times/utmbi8a.pfb></usr/share/texlive/texmf-dist/fonts/type1/urw/times/utmr8a.
 pfb></usr/share/texlive/texmf-dist/fonts/type1/urw/times/utmri8a.pfb>
-Output written on main.pdf (5 pages, 245020 bytes).
+Output written on main.pdf (5 pages, 245690 bytes).
 PDF statistics:
  259 PDF objects out of 1000 (max. 8388607)
  206 compressed objects within 3 object streams
