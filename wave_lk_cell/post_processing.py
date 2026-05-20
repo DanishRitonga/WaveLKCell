@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import numpy as np
 from scipy import ndimage
+from skimage.feature import peak_local_max
 from skimage.segmentation import watershed
 
 
@@ -24,10 +25,16 @@ def _marker_controlled_watershed(
         return np.zeros_like(binary_map, dtype=np.int32)
 
     distance = ndimage.distance_transform_edt(fg_mask)
-    coords = ndimage.maximum_filter(distance, size=3)
-    local_max = (distance == coords) & fg_mask
+    coords = peak_local_max(
+        distance,
+        min_distance=5,
+        labels=fg_mask.astype(np.int32),
+    )
 
-    markers, _ = ndimage.label(local_max)
+    markers = np.zeros_like(binary_map, dtype=np.int32)
+    for y, x in coords:
+        markers[y, x] = 1
+    markers, _ = ndimage.label(markers)
     markers[~fg_mask] = 0
 
     if markers.max() == 0:
