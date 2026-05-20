@@ -172,6 +172,7 @@ class WaveLKCellTrainer:
         self.model.eval()
         total_loss = 0.0
         n_batches = 0
+        dice_scores = []
 
         for images, targets in loader:
             images = images.to(self.device, non_blocking=True)
@@ -186,6 +187,18 @@ class WaveLKCellTrainer:
             total_loss += losses["loss"].item()
             n_batches += 1
 
+            np_pred = outputs["nuclei_binary_map"].argmax(dim=1)
+            for i in range(images.shape[0]):
+                pred_bin = np_pred[i]
+                gt_bin = targets[i]["binary_map"].long()
+                if gt_bin.shape != pred_bin.shape:
+                    continue
+                fg_pred = pred_bin.float()
+                fg_gt = gt_bin.float()
+                inter = (fg_pred * fg_gt).sum()
+                dice = (2.0 * inter + 1e-6) / (fg_pred.sum() + fg_gt.sum() + 1e-6)
+                dice_scores.append(dice.item())
+
             self.model.update_binary_metrics(outputs, targets, metrics)
             if is_test:
                 self.model.update_metrics(outputs, targets, mc_metrics)
@@ -199,6 +212,9 @@ class WaveLKCellTrainer:
 
         avg_bpq = float(torch.stack([v["bPQ"] for v in binary_results.values()]).mean()) if binary_results else 0.0
         metrics_dict[f"{prefix}/bPQ"] = round(avg_bpq, 6)
+
+        avg_dice = float(np.mean(dice_scores)) if dice_scores else 0.0
+        metrics_dict[f"{prefix}/Dice"] = round(avg_dice, 6)
 
         if is_test:
             mc_results = mc_metrics.compute()
@@ -237,8 +253,8 @@ class WaveLKCellTrainer:
         base_lr = self.optimizer.param_groups[0]["lr"]
         last_opt_step = -1
 
-        print(f"{'Epoch':>5} {'loss':>10} {'np':>10} {'hv':>10} {'type':>10} {'bPQ':>10} {'lr':>12}")
-        print("-" * 85)
+        print(f"{'Epoch':>5} {'loss':>10} {'np':>10} {'hv':>10} {'type':>10} {'Dice':>10} {'bPQ':>10} {'lr':>12}")
+        print("-" * 97)
 
         for epoch in range(self.start_epoch, self.epochs):
             self.model.train()
@@ -304,7 +320,7 @@ class WaveLKCellTrainer:
                 torch.cuda.empty_cache()
                 val_scalars = self._validate(self.val_loader, "val")
                 self._log_scalars(val_scalars, epoch + 1)
-                fitness = val_scalars.get("val/bPQ", 0.0)
+                fitness = val_scalars.get("val/Dice", 0.0)
 
             is_best = fitness > self.best_fitness or self.best_fitness == 0
             if is_best:
@@ -322,7 +338,8 @@ class WaveLKCellTrainer:
             print(
                 f"{epoch+1:>5} {epoch_losses['loss']:>10.4f} {np_total:>10.4f} "
                 f"{hv_total:>10.4f} {type_total:>10.4f} "
-                f"{fitness:>10.4f} {self.optimizer.param_groups[0]['lr']:>12.6f}"
+                f"{fitness:>10.4f} {val_scalars.get('val/bPQ', 0.0):>10.4f} "
+                f"{self.optimizer.param_groups[0]['lr']:>12.6f}"
             )
 
             self._save_checkpoint(epoch, is_best)
@@ -333,7 +350,7 @@ class WaveLKCellTrainer:
                 break
 
         self.writer.flush()
-        return {"best_bPQ": round(self.best_fitness, 6)}
+        return {"best_Dice": round(self.best_fitness, 6)}
 
     @torch.no_grad()
     def test(self, ckpt_path: str | None = None) -> dict[str, float]:
