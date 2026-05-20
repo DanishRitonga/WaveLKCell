@@ -123,11 +123,11 @@ The encoder stem downsamples the input by $4\times$ through two consecutive stri
 
 \subsection{Multi-Level Wavelet Enhancement}
 
-Following WaveConvX~\cite{waveconvx}, we integrate a multi-level wavelet enhancement module at the bottleneck of our architecture, applied to the deepest encoder features $\mathbf{F}_3 \in \mathbb{R}^{C \times H' \times W'}$ where $C=384$. This module decomposes features into frequency sub-bands, applies the frequency-specific processors from~\cite{waveconvx}, and reconstructs enhanced features.
+Following WaveConvX~\cite{waveconvx}, we integrate a multi-level wavelet enhancement module at the bottleneck of our architecture, applied to the deepest encoder features $\mathbf{F}_3 \in \mathbb{R}^{C \times H' \times W'}$ where $C=384$. This module decomposes features into frequency sub-bands, applies the frequency-specific processors from WaveConvX~\cite{waveconvx}, and reconstructs enhanced features.
 
 \subsubsection{Two-Level Haar DWT}
 
-Following~\cite{waveconvx}, we apply two successive levels of the 2D Haar Discrete Wavelet Transform (DWT). The first level decomposes the input into four sub-bands:
+Following WaveConvX~\cite{waveconvx}, we apply two successive levels of the 2D Haar Discrete Wavelet Transform (DWT). The first level decomposes the input into four sub-bands:
 \begin{equation}
     \text{DWT}(\mathbf{F}_3) = \{\text{LL}_1, \text{LH}_1, \text{HL}_1, \text{HH}_1\}
 \end{equation}
@@ -139,13 +139,13 @@ The second level further decomposes the approximation coefficients:
 \end{equation}
 yielding sub-bands at resolution $H'/4 \times W'/4$.
 
-We implement the Haar DWT efficiently using strided convolutions with fixed wavelet kernels, grouped by channel to ensure independent transformation per channel with minimal computational overhead, as described in~\cite{waveconvx}.
+We implement the Haar DWT efficiently using strided convolutions with fixed wavelet kernels, grouped by channel to ensure independent transformation per channel with minimal computational overhead, as described in WaveConvX~\cite{waveconvx}.
 
 \subsubsection{Frequency-Specific Processing}
 
-Following the design of~\cite{waveconvx}, each frequency sub-band is processed by a specialized module tailored to the characteristics of histopathological features at that frequency range:
+Following the design of~\cite{waveconvx}, each frequency sub-band is processed by a specialized module (\cref{fig:wavelet}):
 
-\textbf{High Frequency (HH$_1$) --- Adaptive Power Gabor Convolution (APGConv)~\cite{waveconvx}:}
+\textbf{High Frequency Processor (HH$_1$) --- Adaptive Power Gabor Convolution (APGConv)~\cite{waveconvx}:}
 The HH$_1$ sub-band captures fine boundary details and nuclear texture. APGConv~\cite{waveconvx} enhances these features using learnable Gabor filters with an adaptive power exponent. For each output channel $k$, we define a Gabor function on a $5{\times}5$ grid:
 \begin{equation}
     g_k(x,y) = \exp\!\left(-\frac{x_\theta^2 + \gamma_k^2 y_\theta^2}{2\sigma_k^2}\right) \cos\!\left(\frac{2\pi x_\theta}{\lambda_k}\right)
@@ -162,16 +162,19 @@ where $\alpha_k \in (0.1, 3.0)$ is a learnable parameter. When $\alpha_k < 1$, t
 \end{equation}
 followed by GELU activation and batch normalization.
 
-\textbf{Mid-High Frequency (LH$_1$, HL$_1$) --- Self-Attention~\cite{waveconvx}:}
-The LH$_1$ and HL$_1$ sub-bands contain transitional edge structures. Following~\cite{waveconvx}, we apply multi-head self-attention ($4$ heads) to capture long-range spatial dependencies in these frequency components, followed by batch normalization and GELU activation.
+\textbf{Mid-High Frequency Processor (LH$_1$, HL$_1$) --- Self-Attention~\cite{waveconvx}:}
+The LH$_1$ and HL$_1$ sub-bands contain transitional edge structures. Following WaveConvX~\cite{waveconvx}, we apply multi-head self-attention ($4$ heads) to capture long-range spatial dependencies in these frequency components, followed by batch normalization and GELU activation. Unlike WaveConvX~\cite{waveconvx}, which averages the LH$_1$ and HL$_1$ outputs, we process them independently with shared weights to preserve directional information required by the subsequent IDWT reconstruction.
 
-\textbf{Mid-Low Frequency (LH$_2$, HL$_2$) --- Channel Attention~\cite{waveconvx}:}
-The second-level horizontal and vertical detail bands are processed by squeeze-and-excitation style channel attention~\cite{waveconvx}, which recalibrates feature responses across channels to emphasize informative frequency components.
+\textbf{Second Wavelet Decomposition:}
+The LL$_1$ approximation coefficients from the first-level DWT are further decomposed by a second DWT into $\{\text{LL}_2, \text{LH}_2, \text{HL}_2, \text{HH}_2\}$ at resolution $H'/4 \times W'/4$.
 
-\textbf{Low Frequency (HH$_2$) --- Depthwise Pointwise Convolution:}
+\textbf{Mid Frequency Processor (HH$_2$) --- Depthwise Pointwise Convolution:}
 The second-level diagonal detail band is processed by a depthwise separable convolution for efficient local feature refinement.
 
-\textbf{Lowest Frequency (LL$_2$) --- Convolution:}
+\textbf{Mid-Low Frequency Processor (LH$_2$, HL$_2$) --- Channel Attention~\cite{waveconvx}:}
+The second-level horizontal and vertical detail bands are processed by squeeze-and-excitation style channel attention~\cite{waveconvx}, which recalibrates feature responses across channels to emphasize informative frequency components, followed by a $3{\times}3$ convolution.
+
+\textbf{Low Frequency Processor (LL$_2$) --- Convolution:}
 The coarsest approximation coefficients are processed by a standard $3{\times}3$ convolution with batch normalization and GELU activation.
 
 \subsubsection{Reconstruction}
