@@ -241,7 +241,10 @@ def train_epoch(
         imgs, masks_dict, tissue_types = unpack_batch(batch, device=device)
 
         try:
-            with torch.autocast(device_type="cuda", dtype=torch.float16, enabled=mixed_precision):
+            if mixed_precision:
+                with torch.autocast(device_type="cuda", dtype=torch.float16):
+                    predictions_ = model(imgs)
+            else:
                 predictions_ = model(imgs)
 
             predictions = unpack_predictions(predictions_, model, device)
@@ -317,7 +320,10 @@ def validate_epoch(
     for batch_idx, batch in loop:
         imgs, masks_dict, tissue_types = unpack_batch(batch, device=device)
 
-        with torch.autocast(device_type="cuda", dtype=torch.float16, enabled=mixed_precision):
+        if mixed_precision:
+            with torch.autocast(device_type="cuda", dtype=torch.float16):
+                predictions_ = model(imgs)
+        else:
             predictions_ = model(imgs)
 
         predictions = unpack_predictions(predictions_, model, device)
