@@ -254,8 +254,11 @@ def train_epoch(
             predictions = unpack_predictions(predictions_, model, device)
             gt = unpack_masks(masks_dict, tissue_types, device=device)
 
+            pred_dict = {k: v.float() if v.is_floating_point() else v for k, v in predictions.get_dict().items()}
+            gt_dict = {k: v.float() if v.is_floating_point() else v for k, v in gt.get_dict().items()}
+
             total_loss = calculate_loss(
-                predictions.get_dict(), gt.get_dict(),
+                pred_dict, gt_dict,
                 loss_fn_dict, device, loss_avg_tracker,
             )
 
@@ -327,8 +330,11 @@ def validate_epoch(
         predictions = unpack_predictions(predictions_, model, device)
         gt = unpack_masks(masks_dict, tissue_types, device=device)
 
+        pred_dict_fp32 = {k: v.float() if v.is_floating_point() else v for k, v in predictions.get_dict().items()}
+        gt_dict_fp32 = {k: v.float() if v.is_floating_point() else v for k, v in gt.get_dict().items()}
+
         _ = calculate_loss(
-            predictions.get_dict(), gt.get_dict(),
+            pred_dict_fp32, gt_dict_fp32,
             loss_fn_dict, device, loss_avg_tracker,
         )
 
