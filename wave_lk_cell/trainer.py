@@ -294,27 +294,46 @@ class WaveLKCellTrainer:
 
         train_loop = tqdm.tqdm(enumerate(self.train_loader), total=len(self.train_loader))
 
+        last_opt_step = -1
         for batch_idx, batch in train_loop:
             imgs, masks_dict, tissue_types = self._unpack_batch(batch)
 
-            if self.mixed_precision:
-                with torch.autocast(device_type="cuda", dtype=torch.float16):
+            try:
+                if self.mixed_precision:
+                    with torch.autocast(device_type="cuda", dtype=torch.float16):
+                        predictions_ = self.model(imgs)
+                        predictions = self.unpack_predictions(predictions_)
+                        gt = self.unpack_masks(masks_dict, tissue_types)
+                        total_loss = self.calculate_loss(predictions.get_dict(), gt.get_dict())
+                        if torch.isnan(total_loss) or torch.isinf(total_loss):
+                            self.optimizer.zero_grad(set_to_none=True)
+                            continue
+                        self.scaler.scale(total_loss / self.accumulate).backward()
+                else:
                     predictions_ = self.model(imgs)
                     predictions = self.unpack_predictions(predictions_)
                     gt = self.unpack_masks(masks_dict, tissue_types)
                     total_loss = self.calculate_loss(predictions.get_dict(), gt.get_dict())
-                    self.scaler.scale(total_loss).backward()
-                    self.scaler.step(self.optimizer)
-                    self.scaler.update()
+                    if torch.isnan(total_loss) or torch.isinf(total_loss):
+                        self.optimizer.zero_grad(set_to_none=True)
+                        continue
+                    (total_loss / self.accumulate).backward()
+
+                if (batch_idx - last_opt_step) >= self.accumulate:
+                    last_opt_step = batch_idx
+                    if self.mixed_precision:
+                        self.scaler.step(self.optimizer)
+                        self.scaler.update()
+                    else:
+                        self.optimizer.step()
                     self.optimizer.zero_grad(set_to_none=True)
-            else:
-                predictions_ = self.model(imgs)
-                predictions = self.unpack_predictions(predictions_)
-                gt = self.unpack_masks(masks_dict, tissue_types)
-                total_loss = self.calculate_loss(predictions.get_dict(), gt.get_dict())
-                total_loss.backward()
-                self.optimizer.step()
-                self.optimizer.zero_grad(set_to_none=True)
+
+            except RuntimeError as e:
+                if "out of memory" in str(e):
+                    self.optimizer.zero_grad(set_to_none=True)
+                    torch.cuda.empty_cache()
+                    continue
+                raise
 
             pred_dict = predictions.get_dict()
             gt_dict = gt.get_dict()
