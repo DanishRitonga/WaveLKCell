@@ -254,8 +254,8 @@ def train_epoch(
             predictions = unpack_predictions(predictions_, model, device)
             gt = unpack_masks(masks_dict, tissue_types, device=device)
 
-            pred_dict = {k: v.float() if v.is_floating_point() else v for k, v in predictions.get_dict().items()}
-            gt_dict = {k: v.float() if v.is_floating_point() else v for k, v in gt.get_dict().items()}
+            pred_dict = {k: v.float() if isinstance(v, torch.Tensor) and v.is_floating_point() else v for k, v in predictions.get_dict().items()}
+            gt_dict = {k: v.float() if isinstance(v, torch.Tensor) and v.is_floating_point() else v for k, v in gt.get_dict().items()}
 
             total_loss = calculate_loss(
                 pred_dict, gt_dict,
@@ -330,8 +330,8 @@ def validate_epoch(
         predictions = unpack_predictions(predictions_, model, device)
         gt = unpack_masks(masks_dict, tissue_types, device=device)
 
-        pred_dict_fp32 = {k: v.float() if v.is_floating_point() else v for k, v in predictions.get_dict().items()}
-        gt_dict_fp32 = {k: v.float() if v.is_floating_point() else v for k, v in gt.get_dict().items()}
+        pred_dict_fp32 = {k: v.float() if isinstance(v, torch.Tensor) and v.is_floating_point() else v for k, v in predictions.get_dict().items()}
+        gt_dict_fp32 = {k: v.float() if isinstance(v, torch.Tensor) and v.is_floating_point() else v for k, v in gt.get_dict().items()}
 
         _ = calculate_loss(
             pred_dict_fp32, gt_dict_fp32,
