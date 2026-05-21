@@ -407,7 +407,6 @@ class WaveLKCellTrainer:
             tissue_gt.append(gt_tissue)
 
             pred_instance_types_nuclei = pred_dict["instance_types_nuclei"].cpu().numpy().astype(np.int32)
-            pred_instance_types_nuclei = pred_instance_types_nuclei.transpose(0, 3, 1, 2)
             gt_instance_maps = gt_dict["instance_map"].cpu()
             gt_instance_types_nuclei = gt_dict["instance_types_nuclei"].cpu().numpy().astype(np.int32)
 
