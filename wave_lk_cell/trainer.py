@@ -118,6 +118,7 @@ class WaveLKCellTrainer:
         (self.save_dir / "weights").mkdir(exist_ok=True)
 
         self.early_stopping = EarlyStopping(patience=patience, mode="max")
+        self.dataset_config = dataset_config or {}
 
         self.model.freeze_encoder()
         backbone_params = list(self.model.encoder.parameters())
@@ -169,7 +170,7 @@ class WaveLKCellTrainer:
         }
 
     def calculate_loss(self, predictions: dict, gt: dict) -> torch.Tensor:
-        total_loss = torch.tensor(0.0, device=self.device, requires_grad=True)
+        total_loss = 0
         for branch, pred in predictions.items():
             if branch in ["instance_map", "instance_types", "instance_types_nuclei"]:
                 continue
@@ -246,10 +247,12 @@ class WaveLKCellTrainer:
             num_nuclei_classes=self.num_nuclei_classes,
         )
 
-    @staticmethod
-    def _tissue_to_idx(tissue: str | int) -> int:
+    def _tissue_to_idx(self, tissue: str | int) -> int:
         if isinstance(tissue, int):
             return tissue
+        tissue_map = self.dataset_config.get("tissue_types", {})
+        if tissue in tissue_map:
+            return tissue_map[tissue]
         return 0
 
     def _unpack_batch(self, batch):
