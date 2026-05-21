@@ -18,6 +18,10 @@ dependencies = [
     "torchmetrics>=1.0",
     "pyyaml>=6.0",
     "scikit-learn>=1.7.2",
+    "monai>=1.4",
+    "numba>=0.58",
+    "tqdm>=4.60",
+    "opencv-python>=4.5",
 ]
 
 [build-system]
