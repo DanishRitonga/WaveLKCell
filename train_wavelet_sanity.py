@@ -392,14 +392,14 @@ def create_wavelet_cellvit(device="cuda"):
             input_feature.append(encoder.conv(x))
             input_feature.append(encoder.downsample_layers[0][0](x))
 
-            for stage_idx in range(4):
+            for stage_idx in range(3):
                 x = encoder.downsample_layers[stage_idx](x)
-                if stage_idx == 3:
-                    x = wavelet_enhance(x)
-                    x = wavelet_downsample(x)
-                else:
-                    x = encoder.stages[stage_idx](x)
+                x = encoder.stages[stage_idx](x)
                 outs.append(encoder.__getattr__(f'norm{stage_idx}')(x))
+
+            x = wavelet_enhance(x)
+            x = wavelet_downsample(x)
+            outs.append(encoder.__getattr__(f'norm3')(x))
 
             logits = encoder.norm(x.mean([-2, -1]))
             logits = encoder.head(logits)
@@ -419,6 +419,7 @@ def create_wavelet_cellvit(device="cuda"):
     print(f"  Encoder params: {total - wavelet_total:,}")
     print(f"  Wavelet params: {wavelet_total:,}")
 
+    model = model.to(device)
     return model, wavelet_params, encoder_params
 
 
