@@ -6,7 +6,6 @@ with our HuggingFace PanNuke data loader as a sanity check.
 from __future__ import annotations
 
 import argparse
-import sys
 from datetime import datetime
 from pathlib import Path
 
@@ -20,9 +19,7 @@ from torch.optim import AdamW
 from torch.optim.lr_scheduler import CosineAnnealingLR
 from torch.utils.data import DataLoader
 
-sys.path.insert(0, str(Path(__file__).resolve().parent / "LKCell"))
-
-from base_ml.base_loss import (
+from wave_lk_cell.baseline.base_loss import (
     DiceLoss,
     FocalTverskyLoss,
     MCFocalTverskyLoss,
@@ -30,8 +27,8 @@ from base_ml.base_loss import (
     MSELossMaps,
     XentropyLoss,
 )
-from cell_segmentation.utils.metrics import get_fast_pq, remap_label
-from models.segmentation.cell_segmentation.cellvit import CellViT, DataclassHVStorage
+from wave_lk_cell.baseline.metrics import get_fast_pq, remap_label
+from wave_lk_cell.baseline.models.cellvit import CellViT, DataclassHVStorage
 
 from wave_lk_cell.data.datasets.hv_dataset import _compute_hv_map
 from wave_lk_cell.data.pannuke import PanNukeData
