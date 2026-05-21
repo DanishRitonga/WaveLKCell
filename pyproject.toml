@@ -17,6 +17,7 @@ dependencies = [
     "tensorboard>=2.14",
     "torchmetrics>=1.0",
     "pyyaml>=6.0",
+    "scikit-learn>=1.7.2",
 ]
 
 [build-system]

@@ -1,227 +1,355 @@
-"""Post-processing for instance segmentation from NP + HV predictions.
+# -*- coding: utf-8 -*-
+# PostProcessing Pipeline
+#
+# Adapted from HoverNet
+# HoverNet Network (https://doi.org/10.1016/j.media.2019.101563)
+# Code Snippet adapted from HoverNet implementation (https://github.com/vqdang/hover_net)
 
-Adapted from LKCell/HoVerNet with a hybrid approach:
-- When HV predictions are mature (sufficient gradient signal), use Sobel-based
-  boundary detection from HV maps (LKCell's approach).
-- When HV predictions are immature (near-zero), fall back to EDT-based markers
-  from the binary mask shape.
-
-This ensures non-zero PQ throughout training while producing sharp instance
-boundaries once the HV head converges.
-"""
-from __future__ import annotations
+import warnings
+from typing import List, Literal, Tuple
 
 import cv2
 import numpy as np
+import torch
 from scipy import ndimage
+from scipy.ndimage import measurements
 from scipy.ndimage.morphology import binary_fill_holes
-from skimage.feature import peak_local_max
 from skimage.segmentation import watershed
 
 
-def _remove_small_objects(pred: np.ndarray, min_size: int = 10, connectivity: int = 1) -> np.ndarray:
-    out = pred.copy()
-    if min_size <= 0:
+def get_bounding_box(img):
+    """Get bounding box coordinate information."""
+    rows = np.any(img, axis=1)
+    cols = np.any(img, axis=0)
+    rmin, rmax = np.where(rows)[0][[0, -1]]
+    cmin, cmax = np.where(cols)[0][[0, -1]]
+    rmax += 1
+    cmax += 1
+    return [rmin, rmax, cmin, cmax]
+
+
+def remove_small_objects(pred, min_size=64, connectivity=1):
+    """Remove connected components smaller than the specified size.
+
+    This function is taken from skimage.morphology.remove_small_objects, but the warning
+    is removed when a single label is provided.
+
+    Args:
+        pred: input labelled array
+        min_size: minimum size of instance in output array
+        connectivity: The connectivity defining the neighborhood of a pixel.
+
+    Returns:
+        out: output array with instances removed under min_size
+    """
+    out = pred
+
+    if min_size == 0:
         return out
+
     if out.dtype == bool:
         selem = ndimage.generate_binary_structure(pred.ndim, connectivity)
         ccs = np.zeros_like(pred, dtype=np.int32)
         ndimage.label(pred, selem, output=ccs)
     else:
         ccs = out
-    component_sizes = np.bincount(ccs.ravel())
-    too_small_mask = component_sizes < min_size
-    too_small_mask = too_small_mask[ccs]
+
+    try:
+        component_sizes = np.bincount(ccs.ravel())
+    except ValueError:
+        raise ValueError(
+            "Negative value labels are not supported. Try "
+            "relabeling the input with `scipy.ndimage.label` or "
+            "`skimage.morphology.label`."
+        )
+
+    too_small = component_sizes < min_size
+    too_small_mask = too_small[ccs]
     out[too_small_mask] = 0
+
     return out
 
 
-def _hv_is_smooth(h_dir_raw: np.ndarray, v_dir_raw: np.ndarray, threshold: float = 0.1) -> bool:
-    rng = max(h_dir_raw.max() - h_dir_raw.min(), v_dir_raw.max() - v_dir_raw.min())
-    if rng < 0.05:
-        return False
-    h_norm = cv2.normalize(h_dir_raw, None, 0, 1, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_32F)
-    v_norm = cv2.normalize(v_dir_raw, None, 0, 1, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_32F)
-    lap_var = float(cv2.Laplacian(h_norm, cv2.CV_32F).var() + cv2.Laplacian(v_norm, cv2.CV_32F).var())
-    return lap_var < threshold
+class DetectionCellPostProcessor:
+    def __init__(
+        self,
+        nr_types: int = None,
+        magnification: Literal[20, 40] = 40,
+        gt: bool = False,
+    ) -> None:
+        """DetectionCellPostProcessor for postprocessing prediction maps and get detected cells
 
+        Args:
+            nr_types (int, optional): Number of cell types, including background (background = 0). Defaults to None.
+            magnification (Literal[20, 40], optional): Which magnification the data has. Defaults to 40.
+            gt (bool, optional): If this is gt data (used that we do not suppress tiny cells that may be noise in a prediction map).
+                Defaults to False.
 
-def _proc_np_hv_sobel(
-    pred: np.ndarray,
-    object_size: int = 10,
-    ksize: int = 21,
-) -> np.ndarray:
-    """LKCell's HoVerNet-style NP+HV -> instance map using Sobel on HV."""
-    pred = np.array(pred, dtype=np.float32)
-    blb_raw = pred[..., 0]
-    h_dir_raw = pred[..., 1]
-    v_dir_raw = pred[..., 2]
+        Raises:
+            NotImplementedError: Unknown magnification
+        """
+        self.nr_types = nr_types
+        self.magnification = magnification
+        self.gt = gt
 
-    blb = np.array(blb_raw >= 0.5, dtype=np.int32)
-    blb = ndimage.label(blb)[0]
-    blb = _remove_small_objects(blb, min_size=10)
-    blb[blb > 0] = 1
+        if magnification == 40:
+            self.object_size = 10
+            self.k_size = 21
+        elif magnification == 20:
+            self.object_size = 3
+            self.k_size = 11
+        else:
+            raise NotImplementedError("Unknown magnification")
+        if gt:
+            self.object_size = 100
+            self.k_size = 21
 
-    h_dir = cv2.normalize(
-        h_dir_raw, None, alpha=0, beta=1,
-        norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_32F,
-    )
-    v_dir = cv2.normalize(
-        v_dir_raw, None, alpha=0, beta=1,
-        norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_32F,
-    )
+    def post_process_cell_segmentation(
+        self,
+        pred_map: np.ndarray,
+    ) -> Tuple[np.ndarray, dict]:
+        """Post processing of one image tile
 
-    sobelh = cv2.Sobel(h_dir, cv2.CV_64F, 1, 0, ksize=ksize)
-    sobelv = cv2.Sobel(v_dir, cv2.CV_64F, 0, 1, ksize=ksize)
+        Args:
+            pred_map (np.ndarray): Combined output of tp, np and hv branches, in the same order. Shape: (H, W, 4)
 
-    sobelh = 1.0 - cv2.normalize(
-        sobelh, None, alpha=0, beta=1,
-        norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_32F,
-    )
-    sobelv = 1.0 - cv2.normalize(
-        sobelv, None, alpha=0, beta=1,
-        norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_32F,
-    )
+        Returns:
+            Tuple[np.ndarray, dict]:
+                np.ndarray: Instance map for one image. Each nuclei has own integer. Shape: (H, W)
+                dict: Instance dictionary. Main Key is the nuclei instance number (int), with a dict as value.
+                    For each instance, the dictionary contains the keys: bbox (bounding box), centroid (centroid coordinates),
+                    contour, type_prob (probability), type (nuclei type)
+        """
+        if self.nr_types is not None:
+            pred_type = pred_map[..., :1]
+            pred_inst = pred_map[..., 1:]
+            pred_type = pred_type.astype(np.int32)
+        else:
+            pred_inst = pred_map
 
-    overall = np.maximum(sobelh, sobelv)
-    overall = overall - (1 - blb)
-    overall[overall < 0] = 0
-
-    dist = (1.0 - overall) * blb
-    dist = -cv2.GaussianBlur(dist, (3, 3), 0)
-
-    overall_thresh = np.array(overall >= 0.4, dtype=np.int32)
-    marker = blb - overall_thresh
-    marker[marker < 0] = 0
-    marker = binary_fill_holes(marker).astype("uint8")
-    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
-    marker = cv2.morphologyEx(marker, cv2.MORPH_OPEN, kernel)
-    marker = ndimage.label(marker)[0]
-    marker = _remove_small_objects(marker, min_size=object_size)
-
-    if marker.max() == 0:
-        return np.zeros(pred.shape[:2], dtype=np.int32)
-
-    return watershed(dist, markers=marker, mask=blb.astype(bool))
-
-
-def _proc_np_hv_edt(
-    pred: np.ndarray,
-) -> np.ndarray:
-    """EDT-based fallback when HV signal is too weak."""
-    pred = np.array(pred, dtype=np.float32)
-    blb_raw = pred[..., 0]
-
-    fg_mask = blb_raw >= 0.5
-    if not fg_mask.any():
-        return np.zeros(pred.shape[:2], dtype=np.int32)
-
-    blb = np.array(fg_mask, dtype=np.int32)
-    blb = ndimage.label(blb)[0]
-    blb = _remove_small_objects(blb, min_size=10)
-    blb[blb > 0] = 1
-    fg_mask = blb > 0
-
-    distance = ndimage.distance_transform_edt(fg_mask)
-    coords = peak_local_max(
-        distance, min_distance=5, labels=fg_mask.astype(np.int32),
-    )
-
-    markers = np.zeros(pred.shape[:2], dtype=np.int32)
-    for y, x in coords:
-        markers[y, x] = 1
-    markers, _ = ndimage.label(markers)
-    markers[~fg_mask] = 0
-
-    if markers.max() == 0:
-        return np.zeros(pred.shape[:2], dtype=np.int32)
-
-    sobel_h = ndimage.sobel(pred[..., 1], axis=1, mode="constant", cval=0.0)
-    sobel_v = ndimage.sobel(pred[..., 2], axis=0, mode="constant", cval=0.0)
-    edge = np.sqrt(sobel_h**2 + sobel_v**2)
-    edge_norm = (edge - edge.min()) / (edge.max() - edge.min() + 1e-8)
-
-    return watershed(edge_norm, markers, mask=fg_mask)
-
-
-def _proc_np_hv(
-    pred: np.ndarray,
-    object_size: int = 10,
-    ksize: int = 21,
-) -> np.ndarray:
-    """Hybrid NP+HV -> instance map.
-
-    Tries LKCell's Sobel-based approach first. Falls back to EDT-based
-    approach if Sobel markers are empty (HV signal too weak).
-    """
-    h_dir_raw = pred[..., 1]
-    v_dir_raw = pred[..., 2]
-
-    if _hv_is_smooth(h_dir_raw, v_dir_raw):
-        result = _proc_np_hv_sobel(pred, object_size=object_size, ksize=ksize)
-        if result.max() > 0:
-            return result
-
-    return _proc_np_hv_edt(pred)
-
-
-def _majority_voting(
-    instance_map: np.ndarray,
-    type_map: np.ndarray,
-    num_classes: int,
-) -> np.ndarray:
-    instance_ids = np.unique(instance_map)
-    instance_ids = instance_ids[instance_ids > 0]
-
-    result = np.zeros_like(instance_map, dtype=np.int32)
-    for inst_id in instance_ids:
-        mask = instance_map == inst_id
-        if not mask.any():
-            continue
-        pixels = type_map[mask]
-        class_counts = np.bincount(pixels, minlength=num_classes)
-        majority_class = class_counts.argmax()
-        if majority_class == 0 and num_classes > 1:
-            class_counts[0] = 0
-            majority_class = class_counts.argmax()
-        result[mask] = majority_class
-
-    return result
-
-
-def post_process(
-    np_binary_map: np.ndarray,
-    hv_map: np.ndarray,
-    type_map: np.ndarray,
-    num_classes: int = 5,
-    ksize: int = 21,
-    object_size: int = 10,
-) -> tuple[np.ndarray, np.ndarray]:
-    pred = np.stack([np_binary_map, hv_map[..., 0], hv_map[..., 1]], axis=-1)
-    instance_map = _proc_np_hv(pred, object_size=object_size, ksize=ksize)
-    type_instance_map = _majority_voting(instance_map, type_map, num_classes)
-    return instance_map, type_instance_map
-
-
-def post_process_batch(
-    np_binary_maps: np.ndarray,
-    hv_maps: np.ndarray,
-    type_maps: np.ndarray,
-    num_classes: int = 5,
-    ksize: int = 21,
-    object_size: int = 10,
-) -> list[tuple[np.ndarray, np.ndarray]]:
-    results = []
-    for i in range(np_binary_maps.shape[0]):
-        hv = hv_maps[i]
-        if hv.ndim == 3:
-            hv = hv.transpose(1, 2, 0)
-        typ = type_maps[i]
-        if typ.ndim == 3:
-            typ = typ.transpose(1, 2, 0).argmax(axis=-1)
-        inst, type_map = post_process(
-            np_binary_maps[i], hv, typ,
-            num_classes=num_classes, ksize=ksize, object_size=object_size,
+        pred_inst = np.squeeze(pred_inst)
+        pred_inst = self.__proc_np_hv(
+            pred_inst, object_size=self.object_size, ksize=self.k_size
         )
-        results.append((inst, type_map))
-    return results
+
+        inst_id_list = np.unique(pred_inst)[1:]
+        inst_info_dict = {}
+        for inst_id in inst_id_list:
+            inst_map = pred_inst == inst_id
+            rmin, rmax, cmin, cmax = get_bounding_box(inst_map)
+            inst_bbox = np.array([[rmin, cmin], [rmax, cmax]])
+            inst_map = inst_map[
+                inst_bbox[0][0] : inst_bbox[1][0], inst_bbox[0][1] : inst_bbox[1][1]
+            ]
+            inst_map = inst_map.astype(np.uint8)
+            inst_moment = cv2.moments(inst_map)
+            inst_contour = cv2.findContours(
+                inst_map, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE
+            )
+            inst_contour = np.squeeze(inst_contour[0][0].astype("int32"))
+            if inst_contour.shape[0] < 3:
+                continue
+            if len(inst_contour.shape) != 2:
+                continue
+            inst_centroid = [
+                (inst_moment["m10"] / inst_moment["m00"]),
+                (inst_moment["m01"] / inst_moment["m00"]),
+            ]
+            inst_centroid = np.array(inst_centroid)
+            inst_contour[:, 0] += inst_bbox[0][1]
+            inst_contour[:, 1] += inst_bbox[0][0]
+            inst_centroid[0] += inst_bbox[0][1]
+            inst_centroid[1] += inst_bbox[0][0]
+            inst_info_dict[inst_id] = {
+                "bbox": inst_bbox,
+                "centroid": inst_centroid,
+                "contour": inst_contour,
+                "type_prob": None,
+                "type": None,
+            }
+
+        for inst_id in list(inst_info_dict.keys()):
+            rmin, cmin, rmax, cmax = (inst_info_dict[inst_id]["bbox"]).flatten()
+            inst_map_crop = pred_inst[rmin:rmax, cmin:cmax]
+            inst_type_crop = pred_type[rmin:rmax, cmin:cmax]
+            inst_map_crop = inst_map_crop == inst_id
+            inst_type = inst_type_crop[inst_map_crop]
+            type_list, type_pixels = np.unique(inst_type, return_counts=True)
+            type_list = list(zip(type_list, type_pixels))
+            type_list = sorted(type_list, key=lambda x: x[1], reverse=True)
+            inst_type = type_list[0][0]
+            if inst_type == 0:
+                if len(type_list) > 1:
+                    inst_type = type_list[1][0]
+            type_dict = {v[0]: v[1] for v in type_list}
+            type_prob = type_dict[inst_type] / (np.sum(inst_map_crop) + 1.0e-6)
+            inst_info_dict[inst_id]["type"] = int(inst_type)
+            inst_info_dict[inst_id]["type_prob"] = float(type_prob)
+
+        return pred_inst, inst_info_dict
+
+    def __proc_np_hv(
+        self, pred: np.ndarray, object_size: int = 10, ksize: int = 21
+    ) -> np.ndarray:
+        """Process Nuclei Prediction with XY Coordinate Map and generate instance map (each instance has unique integer)
+
+        Separate Instances (also overlapping ones) from binary nuclei map and hv map by using morphological operations and watershed
+
+        Args:
+            pred (np.ndarray): Prediction output, assuming. Shape: (H, W, 3)
+                * channel 0 contain probability map of nuclei
+                * channel 1 containing the regressed X-map
+                * channel 2 containing the regressed Y-map
+            object_size (int, optional): Smallest oject size for filtering. Defaults to 10
+            k_size (int, optional): Sobel Kernel size. Defaults to 21
+        Returns:
+            np.ndarray: Instance map for one image. Each nuclei has own integer. Shape: (H, W)
+        """
+        pred = np.array(pred, dtype=np.float32)
+
+        blb_raw = pred[..., 0]
+        h_dir_raw = pred[..., 1]
+        v_dir_raw = pred[..., 2]
+
+        blb = np.array(blb_raw >= 0.5, dtype=np.int32)
+
+        blb = measurements.label(blb)[0]
+        blb = remove_small_objects(blb, min_size=10)
+        blb[blb > 0] = 1
+
+        h_dir = cv2.normalize(
+            h_dir_raw,
+            None,
+            alpha=0,
+            beta=1,
+            norm_type=cv2.NORM_MINMAX,
+            dtype=cv2.CV_32F,
+        )
+        v_dir = cv2.normalize(
+            v_dir_raw,
+            None,
+            alpha=0,
+            beta=1,
+            norm_type=cv2.NORM_MINMAX,
+            dtype=cv2.CV_32F,
+        )
+
+        sobelh = cv2.Sobel(h_dir, cv2.CV_64F, 1, 0, ksize=ksize)
+        sobelv = cv2.Sobel(v_dir, cv2.CV_64F, 0, 1, ksize=ksize)
+
+        sobelh = 1 - (
+            cv2.normalize(
+                sobelh,
+                None,
+                alpha=0,
+                beta=1,
+                norm_type=cv2.NORM_MINMAX,
+                dtype=cv2.CV_32F,
+            )
+        )
+        sobelv = 1 - (
+            cv2.normalize(
+                sobelv,
+                None,
+                alpha=0,
+                beta=1,
+                norm_type=cv2.NORM_MINMAX,
+                dtype=cv2.CV_32F,
+            )
+        )
+
+        overall = np.maximum(sobelh, sobelv)
+        overall = overall - (1 - blb)
+        overall[overall < 0] = 0
+
+        dist = (1.0 - overall) * blb
+        dist = -cv2.GaussianBlur(dist, (3, 3), 0)
+
+        overall = np.array(overall >= 0.4, dtype=np.int32)
+
+        marker = blb - overall
+        marker[marker < 0] = 0
+        marker = binary_fill_holes(marker).astype("uint8")
+        kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
+        marker = cv2.morphologyEx(marker, cv2.MORPH_OPEN, kernel)
+        marker = measurements.label(marker)[0]
+        marker = remove_small_objects(marker, min_size=object_size)
+
+        proced_pred = watershed(dist, markers=marker, mask=blb)
+
+        return proced_pred
+
+
+def calculate_instances(
+    pred_types: torch.Tensor, pred_insts: torch.Tensor
+) -> List[dict]:
+    """Best used for GT
+
+    Args:
+        pred_types (torch.Tensor): Binary or type map ground-truth.
+             Shape must be (B, C, H, W) with C=1 for binary or num_nuclei_types for multi-class.
+        pred_insts (torch.Tensor): Ground-Truth instance map with shape (B, H, W)
+
+    Returns:
+        list[dict]: Dictionary with nuclei informations, output similar to post_process_cell_segmentation
+    """
+    type_preds = []
+    pred_types = pred_types.permute(0, 2, 3, 1)
+    for i in range(pred_types.shape[0]):
+        pred_type = torch.argmax(pred_types, dim=-1)[i].detach().cpu().numpy()
+        pred_inst = pred_insts[i].detach().cpu().numpy()
+        inst_id_list = np.unique(pred_inst)[1:]
+        inst_info_dict = {}
+        for inst_id in inst_id_list:
+            inst_map = pred_inst == inst_id
+            rmin, rmax, cmin, cmax = get_bounding_box(inst_map)
+            inst_bbox = np.array([[rmin, cmin], [rmax, cmax]])
+            inst_map = inst_map[
+                inst_bbox[0][0] : inst_bbox[1][0], inst_bbox[0][1] : inst_bbox[1][1]
+            ]
+            inst_map = inst_map.astype(np.uint8)
+            inst_moment = cv2.moments(inst_map)
+            inst_contour = cv2.findContours(
+                inst_map, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE
+            )
+            inst_contour = np.squeeze(inst_contour[0][0].astype("int32"))
+            if inst_contour.shape[0] < 3:
+                continue
+            if len(inst_contour.shape) != 2:
+                continue
+            inst_centroid = [
+                (inst_moment["m10"] / inst_moment["m00"]),
+                (inst_moment["m01"] / inst_moment["m00"]),
+            ]
+            inst_centroid = np.array(inst_centroid)
+            inst_contour[:, 0] += inst_bbox[0][1]
+            inst_contour[:, 1] += inst_bbox[0][0]
+            inst_centroid[0] += inst_bbox[0][1]
+            inst_centroid[1] += inst_bbox[0][0]
+            inst_info_dict[inst_id] = {
+                "bbox": inst_bbox,
+                "centroid": inst_centroid,
+                "contour": inst_contour,
+                "type_prob": None,
+                "type": None,
+            }
+        for inst_id in list(inst_info_dict.keys()):
+            rmin, cmin, rmax, cmax = (inst_info_dict[inst_id]["bbox"]).flatten()
+            inst_map_crop = pred_inst[rmin:rmax, cmin:cmax]
+            inst_type_crop = pred_type[rmin:rmax, cmin:cmax]
+            inst_map_crop = inst_map_crop == inst_id
+            inst_type = inst_type_crop[inst_map_crop]
+            type_list, type_pixels = np.unique(inst_type, return_counts=True)
+            type_list = list(zip(type_list, type_pixels))
+            type_list = sorted(type_list, key=lambda x: x[1], reverse=True)
+            inst_type = type_list[0][0]
+            if inst_type == 0:
+                if len(type_list) > 1:
+                    inst_type = type_list[1][0]
+            type_dict = {v[0]: v[1] for v in type_list}
+            type_prob = type_dict[inst_type] / (np.sum(inst_map_crop) + 1.0e-6)
+            inst_info_dict[inst_id]["type"] = int(inst_type)
+            inst_info_dict[inst_id]["type_prob"] = float(type_prob)
+        type_preds.append(inst_info_dict)
+
+    return type_preds
