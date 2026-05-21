@@ -20,7 +20,7 @@ from torch.optim import AdamW
 from torch.optim.lr_scheduler import CosineAnnealingLR
 from torch.utils.data import DataLoader
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "LKCell"))
+sys.path.insert(0, str(Path(__file__).resolve().parent / "LKCell"))
 
 from base_ml.base_loss import (
     DiceLoss,
