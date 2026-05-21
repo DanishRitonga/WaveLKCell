@@ -380,10 +380,10 @@ def main():
 
     device = torch.device(args.device or ("cuda" if torch.cuda.is_available() else "cpu"))
     mixed_precision = args.amp and device.type == "cuda"
-    batch_size = args.batch_size or cfg.get("data", {}).get("batch_size", 32)
-    epochs = args.epochs or cfg.get("trainer", {}).get("epochs", 130)
-    lr = args.lr or cfg.get("optimizer", {}).get("lr", 8e-4)
-    accumulate = cfg.get("trainer", {}).get("accumulate_grad_batches", 1)
+    batch_size = int(args.batch_size or cfg.get("data", {}).get("batch_size", 8))
+    epochs = int(args.epochs or cfg.get("trainer", {}).get("epochs", 130))
+    lr = float(args.lr or cfg.get("optimizer", {}).get("lr", 8e-4))
+    accumulate = int(cfg.get("trainer", {}).get("accumulate_grad_batches", 4))
 
     run_name = args.name or datetime.now().strftime("%Y%m%d_%H%M%S")
     save_dir = Path(f"runs/lkcell_baseline/{run_name}")
