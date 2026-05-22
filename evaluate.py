@@ -33,6 +33,119 @@ NUCLEI_TYPES = {
 }
 
 
+def _patch_wavelet_stage3(model, device):
+    import torch.nn as nn
+    from wave_lk_cell.modeling.wavelet.wavelet_enhance import MultiWaveletEnhance
+    model.encoder.wavelet_enhance = MultiWaveletEnhance(384).to(device)
+    model.encoder.wavelet_downsample = nn.Sequential(
+        nn.Conv2d(384, 768, 3, stride=2, padding=1, bias=False),
+        nn.BatchNorm2d(768),
+    ).to(device)
+    original_forward = model.encoder.forward
+
+    def patched_forward(x):
+        if model.encoder.output_mode == 'features':
+            outs = []
+            input_feature = []
+            input_feature.append(model.encoder.conv(x))
+            input_feature.append(model.encoder.downsample_layers[0][0](x))
+            for stage_idx in range(3):
+                x = model.encoder.downsample_layers[stage_idx](x)
+                x = model.encoder.stages[stage_idx](x)
+                outs.append(model.encoder.__getattr__(f'norm{stage_idx}')(x))
+            x = model.encoder.wavelet_enhance(x)
+            x = model.encoder.wavelet_downsample(x)
+            outs.append(model.encoder.__getattr__(f'norm3')(x))
+            logits = model.encoder.norm(x.mean([-2, -1]))
+            logits = model.encoder.head(logits)
+            return logits, outs, input_feature
+        else:
+            return original_forward(x)
+
+    model.encoder.forward = patched_forward
+
+
+def _patch_wavelet_stem(model, device):
+    import torch.nn as nn
+    from wave_lk_cell.modeling.wavelet.dwt import DWT2
+    from wave_lk_cell.modeling.wavelet.processors import (
+        AdaptivePowerGaborConv, SelfAttention2d,
+    )
+
+    class LayerNormCF(nn.Module):
+        def __init__(self, dim, eps=1e-6):
+            super().__init__()
+            self.weight = nn.Parameter(torch.ones(dim))
+            self.bias = nn.Parameter(torch.zeros(dim))
+            self.eps = eps
+
+        def forward(self, x):
+            u = x.mean(1, keepdim=True)
+            s = (x - u).pow(2).mean(1, keepdim=True)
+            x = (x - u) / torch.sqrt(s + self.eps)
+            return self.weight[:, None, None] * x + self.bias[:, None, None]
+
+    class WaveletStem(nn.Module):
+        def __init__(self, out_channels=96, num_heads=4):
+            super().__init__()
+            self.dwt1 = DWT2(3)
+            self.expand1 = nn.Sequential(
+                nn.Conv2d(12, 48, 3, padding=1, bias=False),
+                nn.BatchNorm2d(48),
+                nn.GELU(),
+            )
+            self.dwt2 = DWT2(48)
+            self.hh_processor = AdaptivePowerGaborConv(48, 48)
+            self.lh_processor = nn.Sequential(SelfAttention2d(48, num_heads=num_heads), nn.BatchNorm2d(48), nn.GELU())
+            self.hl_processor = nn.Sequential(SelfAttention2d(48, num_heads=num_heads), nn.BatchNorm2d(48), nn.GELU())
+            self.ll_processor = nn.Sequential(nn.Conv2d(48, 48, 3, padding=1, bias=False), nn.BatchNorm2d(48), nn.GELU())
+            self.merge = nn.Sequential(nn.Conv2d(192, out_channels, 1, bias=False), LayerNormCF(out_channels))
+            for m in self.modules():
+                if isinstance(m, nn.Conv2d):
+                    nn.init.kaiming_normal_(m.weight, mode="fan_out", nonlinearity="relu")
+                    if m.bias is not None:
+                        nn.init.zeros_(m.bias)
+                elif isinstance(m, nn.BatchNorm2d):
+                    nn.init.ones_(m.weight)
+                    nn.init.zeros_(m.bias)
+
+        def forward(self, x):
+            bands1 = self.dwt1(x)
+            cat1 = torch.cat([bands1["LL"], bands1["LH"], bands1["HL"], bands1["HH"]], dim=1)
+            x1 = self.expand1(cat1)
+            bands2 = self.dwt2(x1)
+            hh2 = self.hh_processor(bands2["HH"])
+            lh2 = self.lh_processor(bands2["LH"])
+            hl2 = self.hl_processor(bands2["HL"])
+            ll2 = self.ll_processor(bands2["LL"])
+            cat2 = torch.cat([ll2, lh2, hl2, hh2], dim=1)
+            return self.merge(cat2)
+
+    wavelet_stem = WaveletStem(out_channels=96).to(device)
+    model.encoder.wavelet_stem = wavelet_stem
+    original_forward = model.encoder.forward
+
+    def patched_forward(x):
+        if model.encoder.output_mode == 'features':
+            outs = []
+            input_feature = []
+            input_feature.append(model.encoder.conv(x))
+            input_feature.append(model.encoder.downsample_layers[0][0](x))
+            x = model.encoder.wavelet_stem(x)
+            for stage_idx in range(4):
+                if stage_idx > 0:
+                    x = model.encoder.downsample_layers[stage_idx](x)
+                x = model.encoder.stages[stage_idx](x)
+                outs.append(model.encoder.__getattr__(f'norm{stage_idx}')(x))
+            logits = model.encoder.norm(x.mean([-2, -1]))
+            logits = model.encoder.head(logits)
+            return logits, outs, input_feature
+        else:
+            return original_forward(x)
+
+    model.encoder.forward = patched_forward
+
+
 def build_model(model_type: str, num_nuclei_classes: int, num_tissue_classes: int, device: torch.device, wavelet: bool = False):
     if model_type == "wavellkcell":
         from wave_lk_cell.model import WaveLKCell
@@ -41,41 +154,17 @@ def build_model(model_type: str, num_nuclei_classes: int, num_tissue_classes: in
             num_tissue_classes=num_tissue_classes,
             pretrained_encoder=False,
         )
-    elif model_type == "baseline":
+    elif model_type in ("baseline", "wavelet-stage3", "wavelet-stem"):
         from wave_lk_cell.baseline.models.cellvit import CellViT
-        from wave_lk_cell.modeling.wavelet.wavelet_enhance import MultiWaveletEnhance
         model = CellViT(
             model256_path="",
             num_nuclei_classes=num_nuclei_classes,
             num_tissue_classes=num_tissue_classes,
         )
-        if wavelet:
-            import torch.nn as nn
-            model.encoder.wavelet_enhance = MultiWaveletEnhance(384).to(device)
-            model.encoder.wavelet_downsample = nn.Sequential(
-                nn.Conv2d(384, 768, 3, stride=2, padding=1, bias=False),
-                nn.BatchNorm2d(768),
-            ).to(device)
-            original_forward = model.encoder.forward
-            def patched_forward(x):
-                if model.encoder.output_mode == 'features':
-                    outs = []
-                    input_feature = []
-                    input_feature.append(model.encoder.conv(x))
-                    input_feature.append(model.encoder.downsample_layers[0][0](x))
-                    for stage_idx in range(3):
-                        x = model.encoder.downsample_layers[stage_idx](x)
-                        x = model.encoder.stages[stage_idx](x)
-                        outs.append(model.encoder.__getattr__(f'norm{stage_idx}')(x))
-                    x = model.encoder.wavelet_enhance(x)
-                    x = model.encoder.wavelet_downsample(x)
-                    outs.append(model.encoder.__getattr__(f'norm3')(x))
-                    logits = model.encoder.norm(x.mean([-2, -1]))
-                    logits = model.encoder.head(logits)
-                    return logits, outs, input_feature
-                else:
-                    return original_forward(x)
-            model.encoder.forward = patched_forward
+        if model_type == "wavelet-stage3" or (model_type == "baseline" and wavelet):
+            _patch_wavelet_stage3(model, device)
+        elif model_type == "wavelet-stem":
+            _patch_wavelet_stem(model, device)
     else:
         raise ValueError(f"Unknown model type: {model_type}")
     return model.to(device)
@@ -213,7 +302,8 @@ def evaluate(model, loader, device, num_nuclei_classes: int, magnification: int,
 def main():
     parser = argparse.ArgumentParser(description="Evaluate WaveLKCell / LKCell baseline on PanNuke test fold")
     parser.add_argument("--checkpoint", type=str, required=True, help="Path to checkpoint (.pt)")
-    parser.add_argument("--model-type", type=str, required=True, choices=["wavellkcell", "baseline"],
+    parser.add_argument("--model-type", type=str, required=True,
+                        choices=["wavellkcell", "baseline", "wavelet-stage3", "wavelet-stem"],
                         help="Model architecture to use")
     parser.add_argument("--num-classes", type=int, default=6, help="num_nuclei_classes (default: 6)")
     parser.add_argument("--num-tissue", type=int, default=19, help="num_tissue_classes (default: 19)")
