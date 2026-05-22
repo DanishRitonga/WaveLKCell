@@ -114,6 +114,71 @@ def get_fast_pq(true, pred, match_iou=0.5):
     return [dq, sq, dq * sq], [paired_true, paired_pred, unpaired_true, unpaired_pred]
 
 
+def masked_pq(true_inst_map, pred_inst_map, iou_threshold=0.5, eps=1e-6):
+    """Compute Masked Panoptic Quality (LSP-DETR, https://arxiv.org/abs/2601.03163).
+
+    Standard PQ penalizes predicted pixels overlapping other GT instances.
+    Masked PQ masks out those pixels from the prediction, making it fairer
+    for overlapping nuclei scenarios.
+
+    For each (GT_i, Pred_j) pair:
+      intersection = GT_i & Pred_j
+      masked_pred_j = Pred_j & ~any(GT)  (predicted pixels NOT on any GT instance)
+      union = sum(GT_i) + sum(masked_pred_j)
+
+    This means predicted pixels that overlap OTHER GT instances are not counted
+    as false positives in the union, so they don't penalize IoU.
+
+    Args:
+        true_inst_map: (H, W) int array, GT instance map (0=bg)
+        pred_inst_map: (H, W) int array, predicted instance map (0=bg)
+        iou_threshold: IoU threshold for matching
+        eps: small value for numerical stability
+
+    Returns:
+        [dq, sq, pq]: measurement statistic
+    """
+    from scipy.optimize import linear_sum_assignment
+
+    true_id_list = list(np.unique(true_inst_map))
+    pred_id_list = list(np.unique(pred_inst_map))
+    if 0 in true_id_list:
+        true_id_list.remove(0)
+    if 0 in pred_id_list:
+        pred_id_list.remove(0)
+    if len(true_id_list) == 0 and len(pred_id_list) == 0:
+        return [1.0, 1.0, 1.0]
+    if len(true_id_list) == 0 or len(pred_id_list) == 0:
+        return [0.0, 0.0, 0.0]
+
+    t_flat = np.stack([true_inst_map == t for t in true_id_list]).reshape(len(true_id_list), -1).astype(np.float64)
+    p_flat = np.stack([pred_inst_map == p for p in pred_id_list]).reshape(len(pred_id_list), -1).astype(np.float64)
+
+    intersection = t_flat @ p_flat.T
+
+    any_true = t_flat.any(axis=0)
+    masked_p = p_flat.copy()
+    masked_p[:, any_true] = 0.0
+    union = t_flat.sum(axis=1, keepdims=True) + masked_p.sum(axis=1, keepdims=True)
+    union = np.maximum(union, eps)
+
+    iou = intersection / union
+
+    row_ind, col_ind = linear_sum_assignment(-iou)
+    paired_iou = iou[row_ind, col_ind]
+    valid = paired_iou > iou_threshold
+    paired_iou = paired_iou[valid]
+    tp = len(paired_iou)
+    fp = len(pred_id_list) - tp
+    fn = len(true_id_list) - tp
+
+    dq = tp / (tp + 0.5 * fp + 0.5 * fn + eps)
+    sq = float(paired_iou.sum()) / (tp + eps) if tp > 0 else 0.0
+    pq = dq * sq
+
+    return [dq, sq, pq]
+
+
 def remap_label(pred, by_size=False):
     """
     Rename all instance id so that the id is contiguous i.e [0, 1, 2, 3]

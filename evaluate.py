@@ -18,7 +18,7 @@ import tqdm
 from torch.utils.data import DataLoader
 
 from wave_lk_cell.data.pannuke import PanNukeData
-from wave_lk_cell.metrics import get_fast_pq, remap_label
+from wave_lk_cell.metrics import get_fast_pq, masked_pq, remap_label
 
 TISSUE_TYPES = {
     "Adrenal_gland": 0, "Bile-duct": 1, "Bladder": 2, "Breast": 3,
@@ -234,7 +234,17 @@ def evaluate(model, loader, device, num_nuclei_classes: int, magnification: int,
 
     all_dice = []
     all_bpq = []
+    all_bdq = []
+    all_bsq = []
     all_mpq = []
+    all_mdq = []
+    all_msq = []
+    all_bmpq = []
+    all_bmdq = []
+    all_bmsq = []
+    all_mmpq = []
+    all_mmdq = []
+    all_mmsq = []
     all_tissue_correct = 0
     all_tissue_total = 0
 
@@ -274,10 +284,22 @@ def evaluate(model, loader, device, num_nuclei_classes: int, magnification: int,
 
             remapped_pred = remap_label(instance_map[i].cpu())
             remapped_gt = remap_label(gt["instance_map"][i].cpu())
-            [_, _, pq], _ = get_fast_pq(true=remapped_gt, pred=remapped_pred)
+            [dq, sq, pq], _ = get_fast_pq(true=remapped_gt, pred=remapped_pred)
             all_bpq.append(pq)
+            all_bdq.append(dq)
+            all_bsq.append(sq)
+
+            [mdq, msq, mpq] = masked_pq(remapped_gt.numpy(), remapped_pred.numpy())
+            all_bmpq.append(mpq)
+            all_bmdq.append(mdq)
+            all_bmsq.append(msq)
 
             per_class_pq = []
+            per_class_dq = []
+            per_class_sq = []
+            per_class_mpq = []
+            per_class_mdq = []
+            per_class_msq = []
             pred_inst_nuclei_np = instance_types_nuclei[i].cpu().numpy().astype(np.int32)
             gt_inst_nuclei_np = gt["instance_types_nuclei"][i].cpu().numpy().astype(np.int32)
             for c in range(num_nuclei_classes):
@@ -285,15 +307,41 @@ def evaluate(model, loader, device, num_nuclei_classes: int, magnification: int,
                 gt_c = remap_label(gt_inst_nuclei_np[c])
                 if len(np.unique(gt_c)) == 1:
                     per_class_pq.append(np.nan)
+                    per_class_dq.append(np.nan)
+                    per_class_sq.append(np.nan)
+                    per_class_mpq.append(np.nan)
+                    per_class_mdq.append(np.nan)
+                    per_class_msq.append(np.nan)
                 else:
-                    [_, _, pq_c], _ = get_fast_pq(pred_c, gt_c, match_iou=0.5)
+                    [dq_c, sq_c, pq_c], _ = get_fast_pq(pred_c, gt_c, match_iou=0.5)
                     per_class_pq.append(pq_c)
+                    per_class_dq.append(dq_c)
+                    per_class_sq.append(sq_c)
+                    [mdq_c, msq_c, mpq_c] = masked_pq(gt_c, pred_c)
+                    per_class_mpq.append(mpq_c)
+                    per_class_mdq.append(mdq_c)
+                    per_class_msq.append(msq_c)
             all_mpq.append(np.nanmean(per_class_pq))
+            all_mdq.append(np.nanmean(per_class_dq))
+            all_msq.append(np.nanmean(per_class_sq))
+            all_mmpq.append(np.nanmean(per_class_mpq))
+            all_mmdq.append(np.nanmean(per_class_mdq))
+            all_mmsq.append(np.nanmean(per_class_msq))
 
     results = {
         "Dice": float(np.nanmean(all_dice)),
         "bPQ": float(np.nanmean(all_bpq)),
+        "bDQ": float(np.nanmean(all_bdq)),
+        "bSQ": float(np.nanmean(all_bsq)),
+        "bMPQ": float(np.nanmean(all_bmpq)),
+        "bMDQ": float(np.nanmean(all_bmdq)),
+        "bMSQ": float(np.nanmean(all_bmsq)),
         "mPQ": float(np.nanmean(all_mpq)),
+        "mDQ": float(np.nanmean(all_mdq)),
+        "mSQ": float(np.nanmean(all_msq)),
+        "mMPQ": float(np.nanmean(all_mmpq)),
+        "mMDQ": float(np.nanmean(all_mmdq)),
+        "mMSQ": float(np.nanmean(all_mmsq)),
         "Tissue_Acc": all_tissue_correct / max(all_tissue_total, 1),
     }
     return results
