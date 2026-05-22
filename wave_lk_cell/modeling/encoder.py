@@ -475,9 +475,11 @@ class UniRepLKNet(nn.Module):
         input_features.append(self.downsample_layers[0][0](x))
 
         features = []
+        raw_features = []
         for stage_idx in range(4):
             x = self.downsample_layers[stage_idx](x)
             x = self.stages[stage_idx](x)
+            raw_features.append(x)
             features.append(self.__getattr__(f"norm{stage_idx}")(x))
 
-        return features, input_features
+        return features, input_features, raw_features

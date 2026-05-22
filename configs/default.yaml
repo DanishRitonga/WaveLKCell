@@ -16,7 +16,7 @@ model:
 
 optimizer:
   lr: 8e-4
-  backbone_lr_ratio: 0.1
+  backbone_lr_ratio: 1.0
   betas: [0.85, 0.95]
   weight_decay: 0.05
 
@@ -27,7 +27,7 @@ trainer:
   epochs: 130
   accumulate_grad_batches: 2
   gradient_clip_val: 1.0
-  unfreeze_epoch: 25
+  unfreeze_epoch: 0
   patience: 130
   amp: true
   magnification: 40

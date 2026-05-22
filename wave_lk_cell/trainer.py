@@ -122,7 +122,8 @@ class WaveLKCellTrainer:
         self.early_stopping = EarlyStopping(patience=patience, mode="max")
         self.dataset_config = dataset_config or {}
 
-        self.model.freeze_encoder()
+        if self.unfreeze_epoch > 0:
+            self.model.freeze_encoder()
         backbone_params = list(self.model.encoder.parameters())
         other_params = [p for p in self.model.parameters() if not any(p is bp for bp in backbone_params)]
         self.optimizer = AdamW(

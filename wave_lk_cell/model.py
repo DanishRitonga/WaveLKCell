@@ -98,6 +98,7 @@ class WaveLKCell(nn.Module):
         self.tissue_classifier = nn.Sequential(
             nn.AdaptiveAvgPool2d(1),
             nn.Flatten(),
+            nn.LayerNorm(dims[3]),
             nn.Linear(dims[3], num_tissue_classes),
         )
 
@@ -109,20 +110,18 @@ class WaveLKCell(nn.Module):
         load_unireplknet_s_encoder(self.encoder)
 
     def forward(self, x: torch.Tensor) -> dict[str, torch.Tensor]:
-        features, input_features = self.encoder(x)
+        features, input_features, raw_features = self.encoder(x)
 
-        stage2_out = features[2]
-        wavelet_out = self.wavelet_enhance(stage2_out)
+        wavelet_out = self.wavelet_enhance(raw_features[2])
         wavelet_feat = self.wavelet_downsample(wavelet_out)
-
-        features[3] = wavelet_feat
+        features[3] = self.encoder.norm3(wavelet_feat)
 
         decoder_out = self.decoder(features, input_features, skip_connect=3)
 
         nuclei_binary_map = self.nuclei_binary_segmentation_head(decoder_out)
         hv_map = self.hv_map_head(decoder_out)
         nuclei_type_map = self.nuclei_type_maps_head(decoder_out)
-        tissue_types = self.tissue_classifier(wavelet_feat)
+        tissue_types = self.tissue_classifier(features[3])
 
         return {
             "nuclei_binary_map": nuclei_binary_map,
