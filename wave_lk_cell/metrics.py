@@ -159,7 +159,7 @@ def masked_pq(true_inst_map, pred_inst_map, iou_threshold=0.5, eps=1e-6):
     any_true = t_flat.any(axis=0)
     masked_p = p_flat.copy()
     masked_p[:, any_true] = 0.0
-    union = t_flat.sum(axis=1, keepdims=True) + masked_p.sum(axis=1, keepdims=True)
+    union = t_flat.sum(axis=1, keepdims=True) + masked_p.sum(axis=1, keepdims=True).T
     union = np.maximum(union, eps)
 
     iou = intersection / union
