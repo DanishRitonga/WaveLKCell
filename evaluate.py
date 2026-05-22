@@ -98,7 +98,7 @@ def unpack_batch(batch, device, num_nuclei_classes: int):
 
     gt_nuclei_binary_oh = F.one_hot(masks_dict["nuclei_binary_map"], num_classes=2).float().permute(0, 3, 1, 2).to(device)
     gt_nuclei_type_oh = F.one_hot(masks_dict["nuclei_type_map"], num_classes=num_nuclei_classes).float().permute(0, 3, 1, 2).to(device)
-    gt_instance_nuclei = (gt_nuclei_type_oh * masks_dict["instance_map"][..., None].to(device).int()).permute(0, 3, 1, 2)
+    gt_instance_nuclei = gt_nuclei_type_oh * masks_dict["instance_map"].unsqueeze(1).to(device).int()
 
     gt = {
         "nuclei_binary_map": gt_nuclei_binary_oh,
