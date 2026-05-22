@@ -56,6 +56,26 @@ def build_model(model_type: str, num_nuclei_classes: int, num_tissue_classes: in
                 nn.Conv2d(384, 768, 3, stride=2, padding=1, bias=False),
                 nn.BatchNorm2d(768),
             ).to(device)
+            original_forward = model.encoder.forward
+            def patched_forward(x):
+                if model.encoder.output_mode == 'features':
+                    outs = []
+                    input_feature = []
+                    input_feature.append(model.encoder.conv(x))
+                    input_feature.append(model.encoder.downsample_layers[0][0](x))
+                    for stage_idx in range(3):
+                        x = model.encoder.downsample_layers[stage_idx](x)
+                        x = model.encoder.stages[stage_idx](x)
+                        outs.append(model.encoder.__getattr__(f'norm{stage_idx}')(x))
+                    x = model.encoder.wavelet_enhance(x)
+                    x = model.encoder.wavelet_downsample(x)
+                    outs.append(model.encoder.__getattr__(f'norm3')(x))
+                    logits = model.encoder.norm(x.mean([-2, -1]))
+                    logits = model.encoder.head(logits)
+                    return logits, outs, input_feature
+                else:
+                    return original_forward(x)
+            model.encoder.forward = patched_forward
     else:
         raise ValueError(f"Unknown model type: {model_type}")
     return model.to(device)
