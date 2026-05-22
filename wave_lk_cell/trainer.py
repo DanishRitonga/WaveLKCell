@@ -423,13 +423,23 @@ class WaveLKCellTrainer:
                 gt = self.unpack_masks(masks_dict, tissue_types)
                 _ = self.calculate_loss(predictions.get_dict(), gt.get_dict())
 
-            if batch_idx == 0 and epoch < 3:
+            if batch_idx == 0 and epoch < 10:
                 np_raw = predictions_["nuclei_binary_map"].detach()
                 np_soft = F.softmax(np_raw.float(), dim=1)
                 fg_prob = np_soft[:, 1].mean().item()
                 bg_prob = np_soft[:, 0].mean().item()
                 fg_argmax = (torch.argmax(np_raw, dim=1) == 1).float().mean().item()
-                print(f"  [val ep{epoch}] NP logits: fg_prob={fg_prob:.4f} bg_prob={bg_prob:.4f} argmax_fg={fg_argmax:.4f}")
+                print(f"  [val eval-mode ep{epoch}] NP: fg_prob={fg_prob:.4f} argmax_fg={fg_argmax:.4f}")
+
+                self.model.train()
+                with torch.autocast(device_type="cuda", dtype=torch.float16, enabled=self.mixed_precision):
+                    train_pred = self.model(imgs)
+                np_train = train_pred["nuclei_binary_map"].detach()
+                np_train_soft = F.softmax(np_train.float(), dim=1)
+                fg_train = np_train_soft[:, 1].mean().item()
+                fg_train_argmax = (torch.argmax(np_train, dim=1) == 1).float().mean().item()
+                print(f"  [val train-mode ep{epoch}] NP: fg_prob={fg_train:.4f} argmax_fg={fg_train_argmax:.4f}")
+                self.model.eval()
 
             pred_dict = predictions.get_dict()
             gt_dict = gt.get_dict()
