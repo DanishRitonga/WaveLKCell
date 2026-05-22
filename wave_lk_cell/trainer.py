@@ -14,7 +14,7 @@ from sklearn.metrics import accuracy_score
 from torch.optim import AdamW
 from torch.optim.lr_scheduler import CosineAnnealingLR
 from torch.utils.data import DataLoader
-from torch.cuda.amp import GradScaler
+from torch.amp import GradScaler
 
 from wave_lk_cell.model import WaveLKCell, DataclassHVStorage
 from wave_lk_cell.losses import (
@@ -113,7 +113,7 @@ class WaveLKCellTrainer:
         self.mixed_precision = amp and self.device.type == "cuda"
         self.num_nuclei_classes = num_classes
         self.loss_fn_dict = loss_fn_dict or self._default_loss_dict()
-        self.scaler = GradScaler(enabled=self.mixed_precision)
+        self.scaler = GradScaler("cuda", enabled=self.mixed_precision)
 
         self.save_dir = Path(save_dir)
         self.save_dir.mkdir(parents=True, exist_ok=True)
@@ -171,7 +171,19 @@ class WaveLKCellTrainer:
             },
         }
 
+    @staticmethod
+    def _to_float32(d: dict) -> dict:
+        out = {}
+        for k, v in d.items():
+            if isinstance(v, torch.Tensor) and v.is_floating_point():
+                out[k] = v.float()
+            else:
+                out[k] = v
+        return out
+
     def calculate_loss(self, predictions: dict, gt: dict) -> torch.Tensor:
+        predictions = self._to_float32(predictions)
+        gt = self._to_float32(gt)
         total_loss = 0
         for branch, pred in predictions.items():
             if branch in ["instance_map", "instance_types", "instance_types_nuclei"]:
@@ -332,9 +344,12 @@ class WaveLKCellTrainer:
                 if (batch_idx - last_opt_step) >= self.accumulate:
                     last_opt_step = batch_idx
                     if self.mixed_precision:
+                        self.scaler.unscale_(self.optimizer)
+                        torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.clip_val)
                         self.scaler.step(self.optimizer)
                         self.scaler.update()
                     else:
+                        torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.clip_val)
                         self.optimizer.step()
                     self.optimizer.zero_grad(set_to_none=True)
 
