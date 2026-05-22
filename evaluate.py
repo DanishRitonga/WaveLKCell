@@ -33,7 +33,7 @@ NUCLEI_TYPES = {
 }
 
 
-def build_model(model_type: str, num_nuclei_classes: int, num_tissue_classes: int, device: torch.device):
+def build_model(model_type: str, num_nuclei_classes: int, num_tissue_classes: int, device: torch.device, wavelet: bool = False):
     if model_type == "wavellkcell":
         from wave_lk_cell.model import WaveLKCell
         model = WaveLKCell(
@@ -43,11 +43,19 @@ def build_model(model_type: str, num_nuclei_classes: int, num_tissue_classes: in
         )
     elif model_type == "baseline":
         from wave_lk_cell.baseline.models.cellvit import CellViT
+        from wave_lk_cell.modeling.wavelet.wavelet_enhance import MultiWaveletEnhance
         model = CellViT(
             model256_path="",
             num_nuclei_classes=num_nuclei_classes,
             num_tissue_classes=num_tissue_classes,
         )
+        if wavelet:
+            import torch.nn as nn
+            model.encoder.wavelet_enhance = MultiWaveletEnhance(384).to(device)
+            model.encoder.wavelet_downsample = nn.Sequential(
+                nn.Conv2d(384, 768, 3, stride=2, padding=1, bias=False),
+                nn.BatchNorm2d(768),
+            ).to(device)
     else:
         raise ValueError(f"Unknown model type: {model_type}")
     return model.to(device)
@@ -193,6 +201,7 @@ def main():
     parser.add_argument("--num-workers", type=int, default=8)
     parser.add_argument("--magnification", type=int, default=40)
     parser.add_argument("--amp", action="store_true", help="Enable AMP for inference")
+    parser.add_argument("--wavelet", action="store_true", help="Baseline has wavelet Stage3 replacement")
     parser.add_argument("--device", type=str, default=None)
     args = parser.parse_args()
 
@@ -201,7 +210,7 @@ def main():
     print(f"Model type: {args.model_type}")
     print(f"Checkpoint: {args.checkpoint}")
 
-    model = build_model(args.model_type, args.num_classes, args.num_tissue, device)
+    model = build_model(args.model_type, args.num_classes, args.num_tissue, device, wavelet=args.wavelet)
     model = load_checkpoint(model, args.checkpoint, device)
     print(f"Params: {sum(p.numel() for p in model.parameters()):,}")
 
