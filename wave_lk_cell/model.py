@@ -112,7 +112,7 @@ class WaveLKCell(nn.Module):
     def forward(self, x: torch.Tensor) -> dict[str, torch.Tensor]:
         features, input_features, raw_features = self.encoder(x)
 
-        wavelet_out = self.wavelet_enhance(raw_features[2])
+        wavelet_out = self.wavelet_enhance(raw_features[2].float())
         wavelet_feat = self.wavelet_downsample(wavelet_out)
         features[3] = self.encoder.norm3(wavelet_feat)
 

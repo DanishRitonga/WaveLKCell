@@ -386,8 +386,9 @@ class WaveLKCellTrainer:
         return {
             "Loss/Train": self.loss_avg_tracker["Total_Loss"].avg,
             "Binary-Cell-Dice-Mean/Train": np.nanmean(binary_dice_scores),
-            "Tissue-Multiclass-Accuracy/Train": accuracy_score(
-                y_true=np.concatenate(tissue_gt), y_pred=np.concatenate(tissue_pred)
+            "Tissue-Multiclass-Accuracy/Train": (
+                accuracy_score(y_true=np.concatenate(tissue_gt), y_pred=np.concatenate(tissue_pred))
+                if tissue_gt else 0.0
             ),
         }
 
