@@ -383,6 +383,9 @@ def create_wavelet_cellvit(device="cuda"):
         nn.BatchNorm2d(768),
     ).to(device)
 
+    encoder.wavelet_enhance = wavelet_enhance
+    encoder.wavelet_downsample = wavelet_downsample
+
     original_forward = encoder.forward
 
     def patched_forward(x):
@@ -397,8 +400,8 @@ def create_wavelet_cellvit(device="cuda"):
                 x = encoder.stages[stage_idx](x)
                 outs.append(encoder.__getattr__(f'norm{stage_idx}')(x))
 
-            x = wavelet_enhance(x)
-            x = wavelet_downsample(x)
+            x = encoder.wavelet_enhance(x)
+            x = encoder.wavelet_downsample(x)
             outs.append(encoder.__getattr__(f'norm3')(x))
 
             logits = encoder.norm(x.mean([-2, -1]))
@@ -409,18 +412,11 @@ def create_wavelet_cellvit(device="cuda"):
 
     encoder.forward = patched_forward
 
-    wavelet_params = list(wavelet_enhance.parameters()) + list(wavelet_downsample.parameters())
-    encoder_params = list(encoder.parameters())
-    all_params = encoder_params + wavelet_params
-
-    total = sum(p.numel() for p in all_params)
-    wavelet_total = sum(p.numel() for p in wavelet_params)
-    print(f"Total params: {total:,}")
-    print(f"  Encoder params: {total - wavelet_total:,}")
-    print(f"  Wavelet params: {wavelet_total:,}")
-
     model = model.to(device)
-    return model, wavelet_params, encoder_params
+    total = sum(p.numel() for p in model.parameters())
+    print(f"Total params: {total:,}")
+
+    return model
 
 
 def main():
@@ -474,7 +470,7 @@ def main():
     print(f"\nWavelet Sanity Check: {save_dir}")
     print(f"Device: {device}, AMP: {mixed_precision}")
 
-    model, wavelet_params, encoder_params = create_wavelet_cellvit(device)
+    model = create_wavelet_cellvit(device)
 
     loss_fn_dict = build_loss_fn_dict()
     loss_avg_tracker = {"Total_Loss": AverageMeter("Total_Loss")}
@@ -483,9 +479,7 @@ def main():
             loss_avg_tracker[f"{branch}_{ln}"] = AverageMeter(f"{branch}_{ln}")
 
     optimizer = AdamW(
-        [
-            {"params": list(model.parameters())},
-        ],
+        [{"params": list(model.parameters())}],
         lr=lr, betas=(0.85, 0.95), weight_decay=0.05, eps=1e-8,
     )
     scheduler = CosineAnnealingLR(optimizer, T_max=epochs, eta_min=1e-5)
