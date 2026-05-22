@@ -139,6 +139,8 @@ def evaluate(model, loader, device, num_nuclei_classes: int, magnification: int,
             magnification,
         )
         instance_types_nuclei = model.generate_instance_nuclei_map(instance_map, instance_types)
+        if instance_types_nuclei.dim() == 4 and instance_types_nuclei.shape[-1] == num_nuclei_classes:
+            instance_types_nuclei = instance_types_nuclei.permute(0, 3, 1, 2)
 
         pred_tissue = torch.argmax(tissue_logits, dim=-1)
         all_tissue_correct += (pred_tissue == gt["tissue_types"]).sum().item()
