@@ -289,7 +289,7 @@ def evaluate(model, loader, device, num_nuclei_classes: int, magnification: int,
             all_bdq.append(dq)
             all_bsq.append(sq)
 
-            [mdq, msq, mpq] = masked_pq(remapped_gt.numpy(), remapped_pred.numpy())
+            [mdq, msq, mpq] = masked_pq(remapped_gt, remapped_pred)
             all_bmpq.append(mpq)
             all_bmdq.append(mdq)
             all_bmsq.append(msq)
