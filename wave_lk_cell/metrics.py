@@ -179,6 +179,162 @@ def masked_pq(true_inst_map, pred_inst_map, iou_threshold=0.5, eps=1e-6):
     return [dq, sq, pq]
 
 
+def compute_aji(pred_masks, gt_masks, iou_threshold=0.5):
+    """Compute Aggregated Jaccard Index for one image.
+
+    AJI = sum_intersections / (sum_unions + unmatched_pred_area + unmatched_gt_area)
+
+    Uses Hungarian matching at iou_threshold to find optimal pairs.
+
+    Args:
+        pred_masks: List of (H, W) uint8 binary masks (predictions).
+        gt_masks: List of (H, W) uint8 binary masks (ground truth).
+        iou_threshold: Minimum IoU for valid match.
+
+    Returns:
+        AJI score in [0, 1]. Returns 0.0 if no GT or pred masks.
+    """
+    if len(gt_masks) == 0 or len(pred_masks) == 0:
+        return 0.0
+
+    iou_matrix = mask_iou_matrix(pred_masks, gt_masks)
+
+    row_ind, col_ind = linear_sum_assignment(-iou_matrix)
+    valid = iou_matrix[row_ind, col_ind] >= iou_threshold
+    match_pred = set(row_ind[valid].tolist())
+    match_gt = set(col_ind[valid].tolist())
+
+    total_intersection = 0.0
+    total_union = 0.0
+    for r, c in zip(row_ind[valid], col_ind[valid]):
+        p = pred_masks[r].astype(np.float64)
+        g = gt_masks[c].astype(np.float64)
+        total_intersection += (p * g).sum()
+        total_union += (p + g - p * g).sum()
+
+    for i in range(len(pred_masks)):
+        if i not in match_pred:
+            total_union += pred_masks[i].astype(np.float64).sum()
+
+    for j in range(len(gt_masks)):
+        if j not in match_gt:
+            total_union += gt_masks[j].astype(np.float64).sum()
+
+    if total_union == 0:
+        return 0.0
+    return total_intersection / total_union
+
+
+def mask_iou_matrix(pred_masks, gt_masks):
+    """Compute pairwise mask IoU between two lists of binary masks.
+
+    Args:
+        pred_masks: List of (H, W) uint8 binary masks.
+        gt_masks: List of (H, W) uint8 binary masks.
+
+    Returns:
+        IoU matrix of shape (N_pred, N_gt).
+    """
+    n_pred = len(pred_masks)
+    n_gt = len(gt_masks)
+    if n_pred == 0 or n_gt == 0:
+        return np.zeros((n_pred, n_gt), dtype=np.float64)
+
+    pred_stack = np.stack(pred_masks).reshape(n_pred, -1).astype(np.float64)
+    gt_stack = np.stack(gt_masks).reshape(n_gt, -1).astype(np.float64)
+
+    intersection = pred_stack @ gt_stack.T
+    pred_area = pred_stack.sum(axis=1, keepdims=True)
+    gt_area = gt_stack.sum(axis=1, keepdims=True)
+    union = pred_area + gt_area.T - intersection
+
+    return np.divide(intersection, union, out=np.zeros_like(intersection, dtype=np.float64), where=union > 0)
+
+
+def compute_pq_masked(pred_masks, gt_masks, iou_threshold=0.5, mask=None):
+    """Compute PQ with optional foreground mask (bMPQ / mMPQ style).
+
+    Matches RayCastED's _compute_pq_masked exactly.
+
+    Args:
+        pred_masks: List of (H, W) uint8 binary masks.
+        gt_masks: List of (H, W) uint8 binary masks.
+        iou_threshold: IoU threshold for matching.
+        mask: Optional foreground mask to apply before matching.
+
+    Returns:
+        (pq, sq, dq) tuple.
+    """
+    n_pred = len(pred_masks)
+    n_gt = len(gt_masks)
+
+    if n_gt == 0 or n_pred == 0:
+        return 0.0, 0.0, 0.0
+
+    if mask is not None:
+        pred_masks = [m & mask for m in pred_masks]
+        gt_masks = [m & mask for m in gt_masks]
+
+    iou_matrix = mask_iou_matrix(pred_masks, gt_masks)
+    row_ind, col_ind = linear_sum_assignment(-iou_matrix)
+    valid = iou_matrix[row_ind, col_ind] >= iou_threshold
+
+    tp = valid.sum()
+    fp = n_pred - tp
+    fn = n_gt - tp
+
+    dq = tp / (tp + 0.5 * fp + 0.5 * fn) if (tp + fp + fn) > 0 else 0.0
+    sq = float(iou_matrix[row_ind[valid], col_ind[valid]].mean()) if tp > 0 else 0.0
+    pq = sq * dq
+    return float(pq), float(sq), float(dq)
+
+
+def compute_centroid_f1(pred_centroids, gt_centroids, radius=12.0):
+    """Compute centroid-based F1 using Hungarian matching.
+
+    A prediction is a true positive if its centroid is within `radius` pixels
+    of a GT centroid after optimal (Hungarian) assignment.
+
+    Args:
+        pred_centroids: (N, 2) array of (x, y) prediction centroids.
+        gt_centroids: (M, 2) array of (x, y) GT centroids.
+        radius: Maximum distance for a valid match (default: 12).
+
+    Returns:
+        (tp, fp, fn) tuple.
+    """
+    n_pred = len(pred_centroids)
+    n_gt = len(gt_centroids)
+
+    if n_pred == 0:
+        return 0, 0, n_gt
+    if n_gt == 0:
+        return 0, n_pred, 0
+
+    dist = np.linalg.norm(gt_centroids[:, :2][:, None] - pred_centroids[:, :2][None, :], axis=2)
+    row_ind, col_ind = linear_sum_assignment(dist)
+    tp = int((dist[row_ind, col_ind] <= radius).sum())
+    fp = n_pred - tp
+    fn = n_gt - tp
+    return tp, fp, fn
+
+
+def compute_ap(recall, precision):
+    """Compute Average Precision from recall and precision arrays.
+
+    Uses all-points interpolation matching COCO/LSP-DETR protocol.
+    """
+    mrec = np.concatenate(([0.0], recall, [1.0]))
+    mpre = np.concatenate(([1.0], precision, [0.0]))
+
+    for i in range(len(mpre) - 2, -1, -1):
+        mpre[i] = max(mpre[i], mpre[i + 1])
+
+    indices = np.where(mrec[1:] != mrec[:-1])[0]
+    ap = np.sum((mrec[indices + 1] - mrec[indices]) * mpre[indices + 1])
+    return float(ap)
+
+
 def remap_label(pred, by_size=False):
     """
     Rename all instance id so that the id is contiguous i.e [0, 1, 2, 3]
