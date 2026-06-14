@@ -37,21 +37,17 @@ from wave_lk_cell.metrics import (
 )
 
 TISSUE_TYPES = {
-    "Adrenal_gland": 0, "Bile-duct": 1, "Bladder": 2, "Breast": 3,
-    "Cervix": 4, "Colon": 5, "Esophagus": 6, "HeadNeck": 7,
+    "Adrenal Gland": 0, "Bile Duct": 1, "Bladder": 2, "Breast": 3,
+    "Cervix": 4, "Colon": 5, "Esophagus": 6, "Head & Neck": 7,
     "Kidney": 8, "Liver": 9, "Lung": 10, "Ovarian": 11,
     "Pancreatic": 12, "Prostate": 13, "Skin": 14, "Stomach": 15,
     "Testis": 16, "Thyroid": 17, "Uterus": 18,
 }
+TISSUE_NAMES = list(TISSUE_TYPES.keys())
 NUCLEI_TYPES = {
     "Background": 0, "Neoplastic": 1, "Inflammatory": 2,
     "Connective": 3, "Dead": 4, "Epithelial": 5,
 }
-TISSUE_NAMES = [
-    "Adrenal Gland", "Bile Duct", "Bladder", "Breast", "Cervix", "Colon",
-    "Esophagus", "Head & Neck", "Kidney", "Liver", "Lung", "Ovarian",
-    "Pancreatic", "Prostate", "Skin", "Stomach", "Testis", "Thyroid", "Uterus",
-]
 NUCLEI_NAMES = ['Neoplastic', 'Inflammatory', 'Connective', 'Necrosis', 'Epithelial']
 
 
@@ -309,12 +305,7 @@ def _get_pred_data(inst_pred, type_pred):
     return masks, np.array(confs), np.array(classes, dtype=int) if classes else np.array([], dtype=int), np.array(centroids) if centroids else np.zeros((0, 2))
 
 def _print_tissue_breakdown(results, metrics):
-    panuke_tissues = [
-        "Adrenal Gland", "Bile Duct", "Bladder", "Breast", "Cervix", "Colon",
-        "Esophagus", "Head & Neck", "Kidney", "Liver", "Lung", "Ovarian",
-        "Pancreatic", "Prostate", "Skin", "Stomach", "Testis", "Thyroid", "Uterus",
-    ]
-    n_groups = len(panuke_tissues)
+    n_groups = len(TISSUE_NAMES)
     tp = [0] * n_groups; fp = [0] * n_groups; fn = [0] * n_groups
     n_gt_g = [0] * n_groups; seen = [set() for _ in range(n_groups)]
 
@@ -361,7 +352,7 @@ def _print_tissue_breakdown(results, metrics):
         prec = tp[g] / (tp[g] + fp[g]) if (tp[g] + fp[g]) else 0
         rec = tp[g] / (tp[g] + fn[g]) if (tp[g] + fn[g]) else 0
         f1 = 2 * prec * rec / (prec + rec) if (prec + rec) else 0
-        vals = [panuke_tissues[g], len(seen[g]), prec, rec, f1]
+        vals = [TISSUE_NAMES[g], len(seen[g]), prec, rec, f1]
         if has_mask:
             aji_arr = np.array(t_aji.get(g, []))
             bpq_arr = np.array(t_bpq.get(g, []))
