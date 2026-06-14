@@ -48,8 +48,8 @@ NUCLEI_TYPES = {
     "Connective": 3, "Dead": 4, "Epithelial": 5,
 }
 TISSUE_NAMES = [
-    "Adrenal", "BileDuct", "Bladder", "Breast", "Cervix", "Colorectal",
-    "Esophagus", "Head&Neck", "Kidney", "Liver", "Lung", "Ovarian",
+    "Adrenal Gland", "Bile Duct", "Bladder", "Breast", "Cervix", "Colon",
+    "Esophagus", "Head & Neck", "Kidney", "Liver", "Lung", "Ovarian",
     "Pancreatic", "Prostate", "Skin", "Stomach", "Testis", "Thyroid", "Uterus",
 ]
 NUCLEI_NAMES = ['Neoplastic', 'Inflammatory', 'Connective', 'Necrosis', 'Epithelial']
@@ -310,8 +310,8 @@ def _get_pred_data(inst_pred, type_pred):
 
 def _print_tissue_breakdown(results, metrics):
     panuke_tissues = [
-        "Adrenal", "BileDuct", "Bladder", "Breast", "Cervix", "Colorectal",
-        "Esophagus", "Head&Neck", "Kidney", "Liver", "Lung", "Ovarian",
+        "Adrenal Gland", "Bile Duct", "Bladder", "Breast", "Cervix", "Colon",
+        "Esophagus", "Head & Neck", "Kidney", "Liver", "Lung", "Ovarian",
         "Pancreatic", "Prostate", "Skin", "Stomach", "Testis", "Thyroid", "Uterus",
     ]
     n_groups = len(panuke_tissues)
